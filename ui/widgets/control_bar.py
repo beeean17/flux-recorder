@@ -10,15 +10,20 @@ from PyQt6.QtWidgets import (
 )
 
 from core.converter import SUPPORTED_FORMATS
+from core.recording_state import IDLE, PAUSED, RECORDING, STARTING, RecordingState
 
 
 class ControlBar(QWidget):
-    record_requested = pyqtSignal()
+    start_requested = pyqtSignal()
+    pause_requested = pyqtSignal()
+    stop_requested = pyqtSignal()
     convert_requested = pyqtSignal(str)
 
     def __init__(self) -> None:
         super().__init__()
-        self._record_button = QPushButton("Start Recording (Space)")
+        self._start_button = QPushButton("Start Recording (Space)")
+        self._pause_button = QPushButton("Pause Recording (P)")
+        self._stop_button = QPushButton("Stop Recording (Enter)")
         self._convert_button = QPushButton("Convert")
         self._format_combo = QComboBox()
         self._status_label = QLabel("Preview mode")
@@ -28,7 +33,9 @@ class ControlBar(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
-        layout.addWidget(self._record_button)
+        layout.addWidget(self._start_button)
+        layout.addWidget(self._pause_button)
+        layout.addWidget(self._stop_button)
         layout.addWidget(QLabel("Output format"))
         layout.addWidget(self._format_combo)
         layout.addWidget(self._convert_button)
@@ -36,15 +43,29 @@ class ControlBar(QWidget):
         layout.addWidget(self._status_label, stretch=1)
         self.setLayout(layout)
 
-        self._record_button.clicked.connect(self.record_requested.emit)
+        self._start_button.clicked.connect(self.start_requested.emit)
+        self._pause_button.clicked.connect(self.pause_requested.emit)
+        self._stop_button.clicked.connect(self.stop_requested.emit)
         self._convert_button.clicked.connect(self._emit_convert_requested)
+        self.set_recording_state(IDLE)
 
-    def set_recording(self, is_recording: bool) -> None:
+    def set_recording_state(self, state: RecordingState) -> None:
+        is_idle = state == IDLE
+        is_starting = state == STARTING
+        is_recording = state == RECORDING
+        is_paused = state == PAUSED
+
+        self._start_button.setEnabled(is_idle or is_paused)
+        self._start_button.setText("Resume Recording (Space)" if is_paused else "Start Recording (Space)")
+        self._pause_button.setEnabled(is_recording)
+        self._stop_button.setEnabled(not is_idle)
+
         if is_recording:
-            self._record_button.setText("Stop Recording (Space)")
             self._status_label.setText("Recording...")
-        else:
-            self._record_button.setText("Start Recording (Space)")
+        elif is_paused:
+            self._status_label.setText("Recording paused.")
+        elif is_starting:
+            self._status_label.setText("Preparing recording...")
 
     def set_status(self, message: str) -> None:
         self._status_label.setText(message)

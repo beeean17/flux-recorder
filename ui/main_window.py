@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.converter import build_output_path, convert
+from core.recording_state import IDLE, PAUSED, RECORDING, RecordingState
 from threads.camera_thread import CameraThread
 from ui.widgets.camera_view import CameraView
 from ui.widgets.control_bar import ControlBar
@@ -48,7 +49,7 @@ class MainWindow(QMainWindow):
         self._control_bar = ControlBar()
         self._camera_thread = CameraThread()
         self._converter_thread: ConverterThread | None = None
-        self._is_recording = False
+        self._recording_state: RecordingState = IDLE
 
         self.setWindowTitle("flux-recorder")
         self.resize(960, 720)
@@ -62,7 +63,9 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-        self._control_bar.record_requested.connect(self.on_record_toggle)
+        self._control_bar.start_requested.connect(self.on_start_requested)
+        self._control_bar.pause_requested.connect(self.on_pause_requested)
+        self._control_bar.stop_requested.connect(self.on_stop_requested)
         self._control_bar.convert_requested.connect(self.on_convert_requested)
 
         self._camera_thread.frame_ready.connect(self.on_frame)
@@ -73,22 +76,35 @@ class MainWindow(QMainWindow):
     def on_frame(self, frame_rgb: np.ndarray) -> None:
         self._camera_view.update_frame(frame_rgb)
 
-    def on_record_toggle(self) -> None:
-        if self._camera_thread.is_recording:
-            self._camera_thread.stop_recording()
+    def on_start_requested(self) -> None:
+        if self._recording_state == PAUSED:
+            self._camera_thread.resume_recording()
+            return
+        if self._recording_state != IDLE:
             return
 
         output_path = self._build_recording_path()
-        self._control_bar.set_status(f"Preparing recording: {output_path.name}")
         self._camera_thread.start_recording(output_path)
 
-    def on_recording_changed(self, is_recording: bool, message: str) -> None:
-        self._is_recording = is_recording
-        self._camera_view.set_recording_indicator(is_recording)
-        self._control_bar.set_recording(is_recording)
-        self._control_bar.set_status(message if message else ("Recording..." if is_recording else "Preview mode"))
+    def on_pause_requested(self) -> None:
+        if self._recording_state == RECORDING:
+            self._camera_thread.pause_recording()
+
+    def on_stop_requested(self) -> None:
+        if self._recording_state != IDLE:
+            self._camera_thread.stop_recording()
+
+    def on_recording_changed(self, state: RecordingState, message: str) -> None:
+        self._recording_state = state
+        self._camera_view.set_recording_indicator(state)
+        self._control_bar.set_recording_state(state)
+        default_message = "Preview mode" if state == IDLE else "Recording..."
+        self._control_bar.set_status(message if message else default_message)
 
     def on_camera_error(self, message: str) -> None:
+        self._recording_state = IDLE
+        self._camera_view.set_recording_indicator(IDLE)
+        self._control_bar.set_recording_state(IDLE)
         self._control_bar.set_status(message)
         QMessageBox.critical(self, "Camera Error", message)
 
@@ -130,8 +146,20 @@ class MainWindow(QMainWindow):
         self._converter_thread = None
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.isAutoRepeat():
+            event.ignore()
+            return
+
         if event.key() == Qt.Key.Key_Space:
-            self.on_record_toggle()
+            self.on_start_requested()
+            event.accept()
+            return
+        if event.key() == Qt.Key.Key_P:
+            self.on_pause_requested()
+            event.accept()
+            return
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.on_stop_requested()
             event.accept()
             return
         if event.key() == Qt.Key.Key_Escape:

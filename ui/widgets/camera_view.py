@@ -5,12 +5,14 @@ from PyQt6.QtCore import QPoint, QRect, Qt
 from PyQt6.QtGui import QColor, QImage, QPainter, QPaintEvent, QPixmap, QResizeEvent
 from PyQt6.QtWidgets import QLabel
 
+from core.recording_state import IDLE, PAUSED, RECORDING, RecordingState
+
 
 class CameraView(QLabel):
     def __init__(self) -> None:
         super().__init__()
         self._current_image: QImage | None = None
-        self._show_recording_indicator = False
+        self._recording_state: RecordingState = IDLE
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(640, 480)
         self.setStyleSheet("background-color: #111; border-radius: 8px;")
@@ -29,8 +31,8 @@ class CameraView(QLabel):
         self._current_image = image
         self._refresh_pixmap()
 
-    def set_recording_indicator(self, is_visible: bool) -> None:
-        self._show_recording_indicator = is_visible
+    def set_recording_indicator(self, state: RecordingState) -> None:
+        self._recording_state = state
         self.update()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
@@ -39,19 +41,24 @@ class CameraView(QLabel):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
-        if not self._show_recording_indicator:
+        if self._recording_state not in (RECORDING, PAUSED):
             return
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        indicator_rect = QRect(self.width() - 110, 16, 94, 30)
-        painter.setBrush(QColor("#d62828"))
+        indicator_rect = QRect(self.width() - 130, 16, 114, 30)
+        is_paused = self._recording_state == PAUSED
+        painter.setBrush(QColor("#f77f00") if is_paused else QColor("#d62828"))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QPoint(indicator_rect.x() + 10, indicator_rect.center().y()), 6, 6)
 
         painter.setPen(QColor("#f8f9fa"))
-        painter.drawText(indicator_rect.adjusted(22, 0, 0, 0), Qt.AlignmentFlag.AlignVCenter, "REC")
+        painter.drawText(
+            indicator_rect.adjusted(22, 0, 0, 0),
+            Qt.AlignmentFlag.AlignVCenter,
+            "PAUSED" if is_paused else "REC",
+        )
 
     def _refresh_pixmap(self) -> None:
         if self._current_image is None:
