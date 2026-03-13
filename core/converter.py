@@ -4,8 +4,6 @@ from pathlib import Path
 import shutil
 import sys
 
-import ffmpeg
-
 SUPPORTED_FORMATS: tuple[str, ...] = ("mp4", "avi", "mov", "mkv", "png", "jpg", "webp", "gif")
 
 
@@ -27,6 +25,11 @@ def build_output_path(input_path: Path | str, target_extension: str) -> Path:
 
 
 def convert(input_path: Path | str, output_path: Path | str) -> Path:
+    try:
+        import ffmpeg
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("python-ffmpeg is not installed. Conversion features are unavailable.") from exc
+
     source = Path(input_path).expanduser().resolve()
     target = Path(output_path).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
