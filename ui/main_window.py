@@ -14,11 +14,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from core.app_mode import AppMode, CONVERT_MODE, SCREEN_MODE, WEBCAM_MODE
 from core.converter import build_output_path, convert
 from core.recording_state import IDLE, PAUSED, RECORDING, RecordingState
 from threads.camera_thread import CameraThread
 from ui.widgets.camera_view import CameraView
+from ui.widgets.converter_panel import ConverterPanel
 from ui.widgets.control_bar import ControlBar
+from ui.widgets.screen_capture_panel import ScreenCapturePanel
 
 
 class ConverterThread(QThread):
@@ -32,7 +35,7 @@ class ConverterThread(QThread):
         self._output_path = output_path
 
     def run(self) -> None:
-        self.status_changed.emit("Converting video...")
+        self.status_changed.emit("Converting media...")
         try:
             converted_path = convert(self._input_path, self._output_path)
         except RuntimeError as exc:
@@ -43,16 +46,31 @@ class ConverterThread(QThread):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, mode: AppMode) -> None:
         super().__init__()
-        self._camera_view = CameraView()
-        self._control_bar = ControlBar()
-        self._camera_thread = CameraThread()
+        self._mode = mode
+        self._camera_view: CameraView | None = None
+        self._control_bar: ControlBar | None = None
+        self._camera_thread: CameraThread | None = None
+        self._converter_panel: ConverterPanel | None = None
+        self._screen_capture_panel: ScreenCapturePanel | None = None
         self._converter_thread: ConverterThread | None = None
         self._recording_state: RecordingState = IDLE
 
-        self.setWindowTitle("flux-recorder")
+        self.setWindowTitle(self._window_title())
         self.resize(960, 720)
+
+        if self._mode == WEBCAM_MODE:
+            self._setup_webcam_mode()
+        elif self._mode == SCREEN_MODE:
+            self._setup_screen_mode()
+        else:
+            self._setup_convert_mode()
+
+    def _setup_webcam_mode(self) -> None:
+        self._camera_view = CameraView()
+        self._control_bar = ControlBar()
+        self._camera_thread = CameraThread()
 
         central_widget = QWidget()
         layout = QVBoxLayout()
@@ -66,17 +84,30 @@ class MainWindow(QMainWindow):
         self._control_bar.start_requested.connect(self.on_start_requested)
         self._control_bar.pause_requested.connect(self.on_pause_requested)
         self._control_bar.stop_requested.connect(self.on_stop_requested)
-        self._control_bar.convert_requested.connect(self.on_convert_requested)
 
         self._camera_thread.frame_ready.connect(self.on_frame)
         self._camera_thread.camera_error.connect(self.on_camera_error)
         self._camera_thread.recording_changed.connect(self.on_recording_changed)
         self._camera_thread.start()
 
+    def _setup_screen_mode(self) -> None:
+        self._screen_capture_panel = ScreenCapturePanel()
+        self._screen_capture_panel.screen_record_requested.connect(self.on_screen_record_requested)
+        self._screen_capture_panel.screenshot_requested.connect(self.on_screenshot_requested)
+        self.setCentralWidget(self._screen_capture_panel)
+
+    def _setup_convert_mode(self) -> None:
+        self._converter_panel = ConverterPanel()
+        self._converter_panel.convert_requested.connect(self.on_convert_requested)
+        self.setCentralWidget(self._converter_panel)
+
     def on_frame(self, frame_rgb: np.ndarray) -> None:
-        self._camera_view.update_frame(frame_rgb)
+        if self._camera_view is not None:
+            self._camera_view.update_frame(frame_rgb)
 
     def on_start_requested(self) -> None:
+        if self._camera_thread is None:
+            return
         if self._recording_state == PAUSED:
             self._camera_thread.resume_recording()
             return
@@ -87,25 +118,29 @@ class MainWindow(QMainWindow):
         self._camera_thread.start_recording(output_path)
 
     def on_pause_requested(self) -> None:
-        if self._recording_state == RECORDING:
+        if self._recording_state == RECORDING and self._camera_thread is not None:
             self._camera_thread.pause_recording()
 
     def on_stop_requested(self) -> None:
-        if self._recording_state != IDLE:
+        if self._recording_state != IDLE and self._camera_thread is not None:
             self._camera_thread.stop_recording()
 
     def on_recording_changed(self, state: RecordingState, message: str) -> None:
         self._recording_state = state
-        self._camera_view.set_recording_indicator(state)
-        self._control_bar.set_recording_state(state)
-        default_message = "Preview mode" if state == IDLE else "Recording..."
-        self._control_bar.set_status(message if message else default_message)
+        if self._camera_view is not None:
+            self._camera_view.set_recording_indicator(state)
+        if self._control_bar is not None:
+            self._control_bar.set_recording_state(state)
+            default_message = "Preview mode" if state == IDLE else "Recording..."
+            self._control_bar.set_status(message if message else default_message)
 
     def on_camera_error(self, message: str) -> None:
         self._recording_state = IDLE
-        self._camera_view.set_recording_indicator(IDLE)
-        self._control_bar.set_recording_state(IDLE)
-        self._control_bar.set_status(message)
+        if self._camera_view is not None:
+            self._camera_view.set_recording_indicator(IDLE)
+        if self._control_bar is not None:
+            self._control_bar.set_recording_state(IDLE)
+            self._control_bar.set_status(message)
         QMessageBox.critical(self, "Camera Error", message)
 
     def on_convert_requested(self, target_format: str) -> None:
@@ -114,38 +149,56 @@ class MainWindow(QMainWindow):
 
         source_path_str, _ = QFileDialog.getOpenFileName(
             self,
-            "Select a video to convert",
-            str(self._default_video_directory()),
-            "Video Files (*.mp4 *.avi *.mov *.mkv)",
+            "Select a file to convert",
+            str(self._default_media_directory()),
+            (
+                "Media Files (*.mp4 *.avi *.mov *.mkv *.png *.jpg *.jpeg *.webp *.gif *.bmp);;"
+                "Video Files (*.mp4 *.avi *.mov *.mkv);;"
+                "Image Files (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"
+            ),
         )
         if not source_path_str:
-            self._control_bar.set_status("Conversion cancelled.")
+            self._set_converter_status("Conversion cancelled.")
             return
 
         input_path = Path(source_path_str)
         output_path = build_output_path(input_path, target_format)
         self._converter_thread = ConverterThread(input_path, output_path)
-        self._converter_thread.status_changed.connect(self._control_bar.set_status)
+        self._converter_thread.status_changed.connect(self._set_converter_status)
         self._converter_thread.conversion_finished.connect(self.on_conversion_finished)
         self._converter_thread.conversion_failed.connect(self.on_conversion_failed)
         self._converter_thread.finished.connect(self.on_conversion_thread_finished)
 
-        self._control_bar.set_conversion_enabled(False)
+        self._set_converter_enabled(False)
         self._converter_thread.start()
 
     def on_conversion_finished(self, output_path: Path) -> None:
-        self._control_bar.set_status(f"Converted file saved to {output_path}")
+        self._set_converter_status(f"Converted file saved to {output_path}")
         QMessageBox.information(self, "Conversion Complete", f"Saved converted file:\n{output_path}")
 
     def on_conversion_failed(self, message: str) -> None:
-        self._control_bar.set_status("Conversion failed.")
+        self._set_converter_status("Conversion failed.")
         QMessageBox.critical(self, "Conversion Error", message)
 
     def on_conversion_thread_finished(self) -> None:
-        self._control_bar.set_conversion_enabled(True)
+        self._set_converter_enabled(True)
         self._converter_thread = None
 
+    def on_screen_record_requested(self) -> None:
+        if self._screen_capture_panel is not None:
+            self._screen_capture_panel.set_status("Screen recording will be implemented in the next step.")
+        QMessageBox.information(self, "Screen Recording", "Screen recording is not connected yet.")
+
+    def on_screenshot_requested(self) -> None:
+        if self._screen_capture_panel is not None:
+            self._screen_capture_panel.set_status("Screenshot capture will be implemented in the next step.")
+        QMessageBox.information(self, "Screenshot Capture", "Screenshot capture is not connected yet.")
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        if self._mode != WEBCAM_MODE:
+            super().keyPressEvent(event)
+            return
+
         if event.isAutoRepeat():
             event.ignore()
             return
@@ -171,7 +224,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._converter_thread is not None and self._converter_thread.isRunning():
             self._converter_thread.wait()
-        if self._camera_thread.isRunning():
+        if self._camera_thread is not None and self._camera_thread.isRunning():
             self._camera_thread.stop()
         event.accept()
 
@@ -183,7 +236,25 @@ class MainWindow(QMainWindow):
         home = Path.home()
         return home / ("Videos" if system() == "Windows" else "Movies")
 
+    def _default_media_directory(self) -> Path:
+        return Path.home()
+
     def _timestamp_string(self) -> str:
         from datetime import datetime
 
         return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    def _window_title(self) -> str:
+        if self._mode == WEBCAM_MODE:
+            return "flux-recorder | Webcam"
+        if self._mode == SCREEN_MODE:
+            return "flux-recorder | Screen Tools"
+        return "flux-recorder | Converter"
+
+    def _set_converter_status(self, message: str) -> None:
+        if self._converter_panel is not None:
+            self._converter_panel.set_status(message)
+
+    def _set_converter_enabled(self, enabled: bool) -> None:
+        if self._converter_panel is not None:
+            self._converter_panel.set_conversion_enabled(enabled)

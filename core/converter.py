@@ -6,7 +6,7 @@ import sys
 
 import ffmpeg
 
-SUPPORTED_FORMATS: tuple[str, ...] = ("mp4", "avi", "mov", "mkv")
+SUPPORTED_FORMATS: tuple[str, ...] = ("mp4", "avi", "mov", "mkv", "png", "jpg", "webp", "gif")
 
 
 def normalize_extension(extension: str) -> str:

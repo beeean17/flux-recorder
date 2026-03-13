@@ -1,15 +1,8 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (
-    QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QWidget,
-)
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
-from core.converter import SUPPORTED_FORMATS
 from core.recording_state import IDLE, PAUSED, RECORDING, STARTING, RecordingState
 
 
@@ -17,18 +10,13 @@ class ControlBar(QWidget):
     start_requested = pyqtSignal()
     pause_requested = pyqtSignal()
     stop_requested = pyqtSignal()
-    convert_requested = pyqtSignal(str)
 
     def __init__(self) -> None:
         super().__init__()
         self._start_button = QPushButton("Start Recording (Space)")
         self._pause_button = QPushButton("Pause Recording (P)")
         self._stop_button = QPushButton("Stop Recording (Enter)")
-        self._convert_button = QPushButton("Convert")
-        self._format_combo = QComboBox()
         self._status_label = QLabel("Preview mode")
-
-        self._format_combo.addItems(SUPPORTED_FORMATS)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -36,9 +24,6 @@ class ControlBar(QWidget):
         layout.addWidget(self._start_button)
         layout.addWidget(self._pause_button)
         layout.addWidget(self._stop_button)
-        layout.addWidget(QLabel("Output format"))
-        layout.addWidget(self._format_combo)
-        layout.addWidget(self._convert_button)
         layout.addStretch(1)
         layout.addWidget(self._status_label, stretch=1)
         self.setLayout(layout)
@@ -46,7 +31,6 @@ class ControlBar(QWidget):
         self._start_button.clicked.connect(self.start_requested.emit)
         self._pause_button.clicked.connect(self.pause_requested.emit)
         self._stop_button.clicked.connect(self.stop_requested.emit)
-        self._convert_button.clicked.connect(self._emit_convert_requested)
         self.set_recording_state(IDLE)
 
     def set_recording_state(self, state: RecordingState) -> None:
@@ -69,10 +53,3 @@ class ControlBar(QWidget):
 
     def set_status(self, message: str) -> None:
         self._status_label.setText(message)
-
-    def set_conversion_enabled(self, enabled: bool) -> None:
-        self._convert_button.setEnabled(enabled)
-        self._format_combo.setEnabled(enabled)
-
-    def _emit_convert_requested(self) -> None:
-        self.convert_requested.emit(self._format_combo.currentText())
