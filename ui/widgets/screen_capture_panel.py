@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import ctypes
+from dataclasses import dataclass
 from pathlib import Path
+from platform import system
 from time import perf_counter
 
 import numpy as np
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication, QImage
+from PyQt6.QtCore import QPoint, QRect, QTimer, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QGuiApplication, QImage, QMouseEvent, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -31,6 +35,519 @@ TEXT_PRIMARY = "#f5f3ff"
 TEXT_SECONDARY = "#a79bbb"
 BORDER = "#34294b"
 DEFAULT_CAPTURE_FPS = 30
+MIN_SELECTION_SIZE = 24
+HOST_HIDE_DELAY_MS = 180
+WDA_EXCLUDEFROMCAPTURE = 0x00000011
+GWL_EXSTYLE = -20
+WS_EX_LAYERED = 0x00080000
+WS_EX_TRANSPARENT = 0x00000020
+WS_EX_NOACTIVATE = 0x08000000
+SWP_NOMOVE = 0x0002
+SWP_NOSIZE = 0x0001
+SWP_NOZORDER = 0x0004
+SWP_NOACTIVATE = 0x0010
+SWP_FRAMECHANGED = 0x0020
+HWND_TOPMOST = -1
+
+
+@dataclass
+class CaptureTarget:
+    mode: str
+    rect: QRect | None = None
+    window_handle: int | None = None
+    title: str = ""
+
+
+if system() == "Windows":
+    from ctypes import wintypes
+
+    class _POINT(ctypes.Structure):
+        _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+    class _RECT(ctypes.Structure):
+        _fields_ = [
+            ("left", wintypes.LONG),
+            ("top", wintypes.LONG),
+            ("right", wintypes.LONG),
+            ("bottom", wintypes.LONG),
+        ]
+
+
+class CaptureSelectorOverlay(QWidget):
+    selection_made = pyqtSignal(object)
+    selection_cancelled = pyqtSignal()
+
+    def __init__(self, mode: str, excluded_handles: set[int] | None = None) -> None:
+        super().__init__(None)
+        self._mode = mode
+        self._excluded_handles = set(excluded_handles or set())
+        self._desktop_geometry = self._virtual_desktop_geometry()
+        self._dragging = False
+        self._start_point: QPoint | None = None
+        self._current_point: QPoint | None = None
+        self._hovered_window: CaptureTarget | None = None
+
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setGeometry(self._desktop_geometry)
+
+    def showEvent(self, event) -> None:  # noqa: ANN001
+        super().showEvent(event)
+        self.raise_()
+        self.activateWindow()
+        self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+
+    def keyPressEvent(self, event) -> None:  # noqa: ANN001
+        if event.key() == Qt.Key.Key_Escape:
+            self.selection_cancelled.emit()
+            self.close()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() != Qt.MouseButton.LeftButton:
+            self.selection_cancelled.emit()
+            self.close()
+            event.accept()
+            return
+
+        if self._mode == "window":
+            target = self._window_at_global_point(event.globalPosition().toPoint())
+            if target is not None:
+                self.selection_made.emit(target)
+                self.close()
+            event.accept()
+            return
+
+        self._dragging = True
+        self._start_point = event.globalPosition().toPoint()
+        self._current_point = self._start_point
+        self.update()
+        event.accept()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        global_point = event.globalPosition().toPoint()
+        if self._mode == "window":
+            self._hovered_window = self._window_at_global_point(global_point)
+        elif self._dragging:
+            self._current_point = global_point
+        self.update()
+        event.accept()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if self._mode != "region" or not self._dragging:
+            event.accept()
+            return
+
+        self._dragging = False
+        self._current_point = event.globalPosition().toPoint()
+        selection_rect = self._normalized_selection_rect()
+        if selection_rect is None:
+            self.selection_cancelled.emit()
+            self.close()
+            event.accept()
+            return
+
+        self.selection_made.emit(CaptureTarget(mode="region", rect=selection_rect, title="Custom area"))
+        self.close()
+        event.accept()
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(3, 4, 9, 165))
+
+        selection_rect = self._hovered_window.rect if self._mode == "window" and self._hovered_window is not None else self._normalized_selection_rect()
+        if selection_rect is not None:
+            local_rect = self._to_local_rect(selection_rect)
+            painter.fillRect(local_rect, QColor(139, 92, 246, 55))
+            painter.setPen(QPen(QColor(196, 181, 253), 2))
+            painter.drawRect(local_rect)
+
+            label_text = self._hovered_window.title if self._mode == "window" and self._hovered_window is not None else f"{selection_rect.width()} x {selection_rect.height()}"
+            label_rect = QRect(local_rect.left(), max(16, local_rect.top() - 42), min(local_rect.width(), 420), 32)
+            painter.fillRect(label_rect, QColor(11, 9, 19, 220))
+            painter.setPen(QColor(TEXT_PRIMARY))
+            painter.drawText(label_rect.adjusted(10, 0, -10, 0), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, label_text)
+
+        painter.setPen(QColor(TEXT_PRIMARY))
+        painter.drawText(
+            QRect(24, 20, self.width() - 48, 54),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
+            self._instruction_text(),
+        )
+        painter.end()
+
+    def _instruction_text(self) -> str:
+        if self._mode == "window":
+            return "Click the window you want to capture. Press Esc to cancel."
+        return "Drag to select a capture area. Release to confirm, or press Esc to cancel."
+
+    def _normalized_selection_rect(self) -> QRect | None:
+        if self._start_point is None or self._current_point is None:
+            return None
+        rect = QRect(self._start_point, self._current_point).normalized()
+        if rect.width() < MIN_SELECTION_SIZE or rect.height() < MIN_SELECTION_SIZE:
+            return None
+        return rect
+
+    def _to_local_rect(self, global_rect: QRect) -> QRect:
+        local_top_left = global_rect.topLeft() - self.geometry().topLeft()
+        return QRect(local_top_left, global_rect.size())
+
+    def _window_at_global_point(self, global_point: QPoint) -> CaptureTarget | None:
+        if system() != "Windows":
+            return None
+
+        user32 = ctypes.windll.user32
+        get_window = user32.GetWindow
+        get_top_window = user32.GetTopWindow
+        is_visible = user32.IsWindowVisible
+        get_window_rect = user32.GetWindowRect
+        get_window_text_length = user32.GetWindowTextLengthW
+        get_window_text = user32.GetWindowTextW
+        hwnd = get_top_window(0)
+
+        excluded_handles = set(self._excluded_handles)
+        try:
+            excluded_handles.add(int(self.winId()))
+        except TypeError:
+            pass
+
+        while hwnd:
+            handle = int(hwnd)
+            if handle not in excluded_handles and is_visible(hwnd):
+                rect = _RECT()
+                if get_window_rect(hwnd, ctypes.byref(rect)):
+                    bounds = QRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+                    if bounds.width() >= MIN_SELECTION_SIZE and bounds.height() >= MIN_SELECTION_SIZE and bounds.contains(global_point):
+                        title_length = get_window_text_length(hwnd)
+                        title_buffer = ctypes.create_unicode_buffer(title_length + 1)
+                        get_window_text(hwnd, title_buffer, len(title_buffer))
+                        title = title_buffer.value.strip() or f"Window {handle}"
+                        return CaptureTarget(mode="window", rect=bounds, window_handle=handle, title=title)
+            hwnd = get_window(hwnd, 2)
+
+        return None
+
+    def _virtual_desktop_geometry(self) -> QRect:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return QRect(0, 0, 1920, 1080)
+
+        geometry = QRect(screens[0].geometry())
+        for screen in screens[1:]:
+            geometry = geometry.united(screen.geometry())
+        return geometry
+
+
+def _set_window_capture_exclusion(widget: QWidget, excluded: bool = True) -> bool:
+    if system() != "Windows":
+        return False
+
+    try:
+        hwnd = int(widget.winId())
+    except TypeError:
+        return False
+
+    affinity = WDA_EXCLUDEFROMCAPTURE if excluded else 0
+    try:
+        return bool(ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity))
+    except (AttributeError, OSError):
+        return False
+
+
+def _set_window_click_through(widget: QWidget, enabled: bool = True) -> bool:
+    if system() != "Windows":
+        return False
+
+    try:
+        hwnd = int(widget.winId())
+        user32 = ctypes.windll.user32
+        current_style = int(user32.GetWindowLongW(hwnd, GWL_EXSTYLE))
+    except (TypeError, AttributeError, OSError):
+        return False
+
+    updated_style = current_style | WS_EX_LAYERED | WS_EX_NOACTIVATE
+    if enabled:
+        updated_style |= WS_EX_TRANSPARENT
+    else:
+        updated_style &= ~WS_EX_TRANSPARENT
+
+    try:
+        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, updated_style)
+        user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
+    except (AttributeError, OSError):
+        return False
+    return True
+
+
+def _raise_window_topmost(widget: QWidget) -> bool:
+    if system() != "Windows":
+        return False
+
+    try:
+        hwnd = int(widget.winId())
+        ctypes.windll.user32.SetWindowPos(
+            hwnd,
+            HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        )
+    except (TypeError, AttributeError, OSError):
+        return False
+    return True
+
+
+def _capture_virtual_desktop_image() -> QImage | None:
+    screens = QGuiApplication.screens()
+    if not screens:
+        return None
+
+    geometry = QRect(screens[0].geometry())
+    for screen in screens[1:]:
+        geometry = geometry.united(screen.geometry())
+
+    image = QImage(geometry.size(), QImage.Format.Format_RGBA8888)
+    image.fill(Qt.GlobalColor.black)
+
+    painter = QPainter(image)
+    for screen in screens:
+        pixmap = screen.grabWindow(0)
+        if pixmap.isNull():
+            continue
+        painter.drawPixmap(screen.geometry().topLeft() - geometry.topLeft(), pixmap)
+    painter.end()
+    return image
+
+
+def _build_soft_blur(image: QImage, divisor: int = 12) -> QImage:
+    width = max(1, image.width() // divisor)
+    height = max(1, image.height() // divisor)
+    reduced = image.scaled(
+        width,
+        height,
+        Qt.AspectRatioMode.IgnoreAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
+    return reduced.scaled(
+        image.width(),
+        image.height(),
+        Qt.AspectRatioMode.IgnoreAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
+
+
+def _window_rect_from_handle(window_handle: int) -> QRect | None:
+    if system() != "Windows":
+        return None
+
+    rect = _RECT()
+    try:
+        ok = bool(ctypes.windll.user32.GetWindowRect(window_handle, ctypes.byref(rect)))
+    except (AttributeError, OSError):
+        return None
+    if not ok:
+        return None
+
+    width = rect.right - rect.left
+    height = rect.bottom - rect.top
+    if width < MIN_SELECTION_SIZE or height < MIN_SELECTION_SIZE:
+        return None
+    return QRect(rect.left, rect.top, width, height)
+
+
+class FloatingCaptureController(QWidget):
+    resume_requested = pyqtSignal()
+    pause_requested = pyqtSignal()
+    stop_requested = pyqtSignal()
+
+    def __init__(self) -> None:
+        super().__init__(None)
+        self._drag_offset: QPoint | None = None
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setStyleSheet(
+            """
+            QWidget {
+                background: rgba(11, 9, 19, 0.94);
+                border: 1px solid #34294b;
+                border-radius: 18px;
+            }
+            """
+        )
+
+        self._resume_button = QPushButton("REC")
+        self._pause_button = QPushButton("PAUSE")
+        self._stop_button = QPushButton("STOP")
+
+        self._resume_button.clicked.connect(self.resume_requested.emit)
+        self._pause_button.clicked.connect(self.pause_requested.emit)
+        self._stop_button.clicked.connect(self.stop_requested.emit)
+
+        for button, background, border in (
+            (self._resume_button, "#10b981", "#34d399"),
+            (self._pause_button, "#211a35", "#8b5cf6"),
+            (self._stop_button, "#7f1d1d", "#ef4444"),
+        ):
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setFixedHeight(28)
+            button.setStyleSheet(
+                f"""
+                QPushButton {{
+                    background: {background};
+                    color: #f8fafc;
+                    border: 1px solid {border};
+                    border-radius: 12px;
+                    padding: 2px 10px;
+                    font-size: 10px;
+                    font-weight: 800;
+                }}
+                QPushButton:disabled {{
+                    background: #1f2937;
+                    color: #64748b;
+                    border-color: #334155;
+                }}
+                """
+            )
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(6)
+        layout.addWidget(self._resume_button)
+        layout.addWidget(self._pause_button)
+        layout.addWidget(self._stop_button)
+        self.setLayout(layout)
+        self.adjustSize()
+
+    def showEvent(self, event) -> None:  # noqa: ANN001
+        super().showEvent(event)
+        _set_window_capture_exclusion(self, excluded=True)
+        _raise_window_topmost(self)
+
+    def sync_state(self, state: RecordingState) -> None:
+        self._resume_button.setEnabled(state == PAUSED)
+        self._pause_button.setEnabled(state == RECORDING)
+        self._stop_button.setEnabled(state in (RECORDING, PAUSED))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            child = self.childAt(event.position().toPoint())
+            if not isinstance(child, QPushButton):
+                self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                _raise_window_topmost(self)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._drag_offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_offset is not None:
+            self._drag_offset = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
+class RecordingFocusOverlay(QWidget):
+    def __init__(self, target_provider) -> None:  # noqa: ANN001
+        super().__init__(None)
+        self._target_provider = target_provider
+        self._blurred_desktop_image: QImage | None = None
+        self._target_rect: QRect | None = None
+
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+            | Qt.WindowType.WindowTransparentForInput
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+
+    def showEvent(self, event) -> None:  # noqa: ANN001
+        super().showEvent(event)
+        _set_window_capture_exclusion(self, excluded=True)
+        _set_window_click_through(self, enabled=True)
+
+    def start(self) -> None:
+        self.refresh_overlay()
+        self.show()
+        self.raise_()
+        _raise_window_topmost(self)
+
+    def stop(self) -> None:
+        self.hide()
+
+    def refresh_overlay(self) -> None:
+        target = self._target_provider()
+        if target is None or target.rect is None:
+            self.hide()
+            return
+
+        geometry = self._virtual_desktop_geometry()
+        self.setGeometry(geometry)
+        self._target_rect = QRect(target.rect)
+        desktop_image = _capture_virtual_desktop_image()
+        if desktop_image is None or desktop_image.isNull():
+            self.hide()
+            return
+
+        self._blurred_desktop_image = _build_soft_blur(desktop_image)
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001
+        if self._blurred_desktop_image is None or self._target_rect is None:
+            return
+
+        painter = QPainter(self)
+
+        local_target_rect = QRect(self._target_rect)
+        local_target_rect.translate(-self.geometry().topLeft())
+
+        clip_region = QRegion(self.rect()).subtracted(QRegion(local_target_rect))
+        painter.save()
+        painter.setClipRegion(clip_region)
+        painter.drawImage(self.rect(), self._blurred_desktop_image)
+        painter.fillRect(self.rect(), QColor(9, 11, 20, 28))
+        painter.restore()
+
+        painter.setPen(QPen(QColor(196, 181, 253), 2))
+        painter.drawRect(local_target_rect)
+        painter.end()
+
+    def _virtual_desktop_geometry(self) -> QRect:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return QRect(0, 0, 1920, 1080)
+
+        geometry = QRect(screens[0].geometry())
+        for screen in screens[1:]:
+            geometry = geometry.united(screen.geometry())
+        return geometry
 
 
 class ScreenCapturePanel(QWidget):
@@ -53,6 +570,15 @@ class ScreenCapturePanel(QWidget):
         self._capture_mode = "full_screen"
         self._recording_started_at: float | None = None
         self._elapsed_before_pause = 0.0
+        self._window_target: CaptureTarget | None = None
+        self._region_target: CaptureTarget | None = None
+        self._selection_overlay: CaptureSelectorOverlay | None = None
+        self._pending_action: str | None = None
+        self._restore_window_maximized = False
+        self._host_window_hidden = False
+        self._hidden_for_recording = False
+        self._floating_controller: FloatingCaptureController | None = None
+        self._focus_overlay: RecordingFocusOverlay | None = None
 
         self._capture_tabs = QButtonGroup(self)
         self._capture_tabs.setExclusive(True)
@@ -102,6 +628,16 @@ class ScreenCapturePanel(QWidget):
         self._snapshot_button = QPushButton("Snapshot")
         self._pause_button = QPushButton("Pause")
         self._stop_button = QPushButton("Stop")
+        self._target_summary_label = QLabel()
+        self._target_summary_label.setWordWrap(True)
+        self._target_summary_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
+        self._target_hint_label = QLabel()
+        self._target_hint_label.setWordWrap(True)
+        self._target_hint_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
+        self._select_target_button = QPushButton()
+        self._select_target_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._select_target_button.clicked.connect(lambda: self._begin_target_selection())
+        self._select_target_button.setStyleSheet(self._sidebar_button_style())
 
         self._record_button.clicked.connect(self.start_or_resume_recording)
         self._snapshot_button.clicked.connect(self.capture_snapshot)
@@ -123,6 +659,7 @@ class ScreenCapturePanel(QWidget):
         )
         self.set_output_path(self._save_directory)
         self._set_recording_state(IDLE)
+        self._update_capture_target_ui()
 
     @property
     def recording_state(self) -> RecordingState:
@@ -153,16 +690,28 @@ class ScreenCapturePanel(QWidget):
             self._preview_timer.deleteLater()
         self._preview_timer = None
 
+        if self._selection_overlay is not None:
+            self._selection_overlay.close()
+            self._selection_overlay.deleteLater()
+        self._selection_overlay = None
+        self._pending_action = None
+
         if self._recorder is not None:
             saved_path = self._recorder.stop()
             if saved_path is not None and self._recording_state != IDLE:
                 self.recording_saved.emit(str(saved_path))
+
+        self._teardown_floating_controller()
+        self._teardown_focus_overlay()
+        if self._host_window_hidden:
+            self._restore_host_window()
 
         self._recorder = None
         self._cv2 = None
         self._current_frame_bgr = None
         self._recording_started_at = None
         self._elapsed_before_pause = 0.0
+        self._hidden_for_recording = False
         self._update_duration_display(0.0)
         self._set_recording_state(IDLE)
 
@@ -193,23 +742,11 @@ class ScreenCapturePanel(QWidget):
         if self._recording_state == RECORDING:
             return
 
-        frame_bgr = self._current_frame_bgr.copy() if self._current_frame_bgr is not None else self._grab_screen_frame()
-        if frame_bgr is None:
-            self.set_status("Unable to capture a screen frame.")
+        if not self._ensure_capture_target_ready("record"):
             return
 
-        output_path = self._build_recording_path()
-        height, width = frame_bgr.shape[:2]
-        try:
-            self._recorder.start(output_path=output_path, fps=float(self._selected_fps()), size=(width, height))
-        except RuntimeError as exc:
-            self.set_status(str(exc))
-            return
-
-        self._elapsed_before_pause = 0.0
-        self._recording_started_at = perf_counter()
-        self._set_recording_state(RECORDING)
-        self.set_status(f"Recording to {output_path}")
+        self.set_status("Preparing capture. Recorder will hide before recording starts.")
+        self._run_hidden_host_action(self._start_recording_now, restore_after=False)
 
     def pause_recording(self) -> None:
         if self._recording_state != RECORDING:
@@ -219,10 +756,12 @@ class ScreenCapturePanel(QWidget):
             self._elapsed_before_pause += perf_counter() - self._recording_started_at
         self._recording_started_at = None
         self._set_recording_state(PAUSED)
-        self.set_status("Recording paused.")
+        self.set_status("Recording paused. Use the mini controller to resume or stop.")
 
     def stop_recording(self) -> None:
         if self._recording_state == IDLE or self._recorder is None:
+            if self._hidden_for_recording:
+                self._finish_hidden_recording_session()
             return
 
         if self._recording_state == RECORDING and self._recording_started_at is not None:
@@ -233,6 +772,7 @@ class ScreenCapturePanel(QWidget):
         self._elapsed_before_pause = 0.0
         self._update_duration_display(0.0)
         self._set_recording_state(IDLE)
+        self._finish_hidden_recording_session()
 
         if saved_path is not None:
             self.set_recent_capture(saved_path.name)
@@ -244,27 +784,21 @@ class ScreenCapturePanel(QWidget):
     def capture_snapshot(self) -> None:
         if self._cv2 is None:
             self.start_preview()
-        frame_bgr = self._current_frame_bgr.copy() if self._current_frame_bgr is not None else self._grab_screen_frame()
-        if frame_bgr is None or self._cv2 is None:
-            self.set_status("Unable to capture a snapshot.")
+        if self._cv2 is None:
             return
 
-        output_path = self._build_snapshot_path()
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        if not self._cv2.imwrite(str(output_path), frame_bgr):
-            self.set_status(f"Unable to save snapshot to {output_path}")
+        if not self._ensure_capture_target_ready("snapshot"):
             return
 
-        self.set_recent_capture(output_path.name)
-        self.set_status(f"Saved snapshot to {output_path}")
-        self.snapshot_saved.emit(str(output_path))
+        self.set_status("Capturing snapshot. Recorder will hide for a moment.")
+        self._run_hidden_host_action(self._capture_snapshot_now, restore_after=True)
 
     def _build_body(self) -> QHBoxLayout:
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self._build_main_canvas(), 1)
         layout.addWidget(self._build_sidebar())
+        layout.addWidget(self._build_main_canvas(), 1)
         return layout
 
     def _build_sidebar(self) -> QWidget:
@@ -283,7 +817,7 @@ class ScreenCapturePanel(QWidget):
 
         title = QLabel("Capture Settings")
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 20px; font-weight: 700;")
-        subtitle = QLabel("Configure recording scope, quality, and output.")
+        subtitle = QLabel("Pick what to capture first, then hide the recorder while capture runs.")
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
@@ -293,6 +827,7 @@ class ScreenCapturePanel(QWidget):
         layout.addSpacing(4)
         layout.addWidget(self._build_section_title("Capture Mode"))
         layout.addWidget(self._build_sidebar_capture_toggle())
+        layout.addWidget(self._build_target_card())
         layout.addSpacing(8)
         layout.addWidget(self._build_section_title("Video Settings"))
         layout.addWidget(self._build_resolution_group())
@@ -318,20 +853,24 @@ class ScreenCapturePanel(QWidget):
     def _build_main_canvas(self) -> QWidget:
         frame = QFrame()
         frame.setStyleSheet(
-            f"background: {SURFACE}; border-right: 1px solid {BORDER}; border-bottom: 1px solid {BORDER};"
+            f"background: {SURFACE}; border-left: 1px solid {BORDER}; border-bottom: 1px solid {BORDER};"
         )
 
-        badge = QLabel("Screen capture controls")
+        badge = QLabel("Screen capture workflow")
         badge.setStyleSheet(self._badge_style("#1d1730", "#c4b5fd"))
 
-        title = QLabel("This window configures off-window capture.")
+        title = QLabel("Select the target first, then let the recorder step out of the way.")
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 28px; font-weight: 700;")
 
-        subtitle = QLabel("The recording target is the desktop, a window, or a region outside this app.")
+        subtitle = QLabel(
+            "Window and custom-area capture now use a dedicated picker so you can lock onto the exact target before recording."
+        )
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
 
-        helper = QLabel("Use the right sidebar to choose mode, frame rate, audio toggles, and save path.")
+        helper = QLabel(
+            "When recording starts, the app hides itself and leaves behind only a tiny capture-excluded controller for resume, pause, and stop."
+        )
         helper.setWordWrap(True)
         helper.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
 
@@ -405,39 +944,6 @@ class ScreenCapturePanel(QWidget):
         label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 700; text-transform: uppercase;")
         return label
 
-    def _build_mode_card(self, text: str, active: bool) -> QWidget:
-        card = QFrame()
-        background = "rgba(139, 92, 246, 0.14)" if active else SURFACE_ALT
-        border_color = ACCENT if active else BORDER
-        card.setStyleSheet(
-            f"background: {background}; border: 1px solid {border_color}; border-radius: 14px;"
-        )
-
-        dot = QFrame()
-        dot.setFixedSize(10, 10)
-        dot.setStyleSheet(
-            f"background: {ACCENT if active else '#5c5473'}; border-radius: 5px; border: none;"
-        )
-
-        title = QLabel(text)
-        title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
-        subtitle = QLabel("Ready" if active else "Available")
-        subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px;")
-
-        text_layout = QVBoxLayout()
-        text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(2)
-        text_layout.addWidget(title)
-        text_layout.addWidget(subtitle)
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(12)
-        layout.addWidget(dot, 0, Qt.AlignmentFlag.AlignTop)
-        layout.addLayout(text_layout, 1)
-        card.setLayout(layout)
-        return card
-
     def _build_sidebar_capture_toggle(self) -> QWidget:
         container = QFrame()
         container.setStyleSheet(
@@ -488,6 +994,26 @@ class ScreenCapturePanel(QWidget):
 
         container.setLayout(layout)
         return container
+
+    def _build_target_card(self) -> QWidget:
+        card = QFrame()
+        card.setStyleSheet(
+            f"background: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 14px;"
+        )
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+
+        title = QLabel("Capture Target")
+        title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
+
+        layout.addWidget(title)
+        layout.addWidget(self._target_summary_label)
+        layout.addWidget(self._target_hint_label)
+        layout.addWidget(self._select_target_button)
+        card.setLayout(layout)
+        return card
 
     def _build_resolution_group(self) -> QWidget:
         wrapper = QWidget()
@@ -594,7 +1120,10 @@ class ScreenCapturePanel(QWidget):
     def _poll_frame(self) -> None:
         frame_bgr = self._grab_screen_frame()
         if frame_bgr is None:
-            self.set_status("Unable to capture the screen preview.")
+            self._current_frame_bgr = None
+            if self._recording_state == RECORDING:
+                self.stop_recording()
+                self.set_status("Capture target is unavailable. Recording stopped.")
             return
 
         self._current_frame_bgr = frame_bgr
@@ -607,26 +1136,89 @@ class ScreenCapturePanel(QWidget):
             self._update_duration_display(elapsed)
 
     def _grab_screen_frame(self) -> np.ndarray | None:
-        screen = self._current_screen()
-        if screen is None or self._cv2 is None:
+        if self._cv2 is None:
             return None
 
-        pixmap = screen.grabWindow(0)
-        if pixmap.isNull():
+        if self._capture_mode == "window":
+            image = self._grab_selected_window_image()
+        elif self._capture_mode == "region":
+            image = self._grab_selected_region_image()
+        else:
+            image = self._grab_virtual_desktop_image()
+
+        if image is None or image.isNull():
             return None
 
-        image = pixmap.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
-        width = image.width()
-        height = image.height()
+        return self._qimage_to_bgr_frame(image)
+
+    def _grab_selected_window_image(self) -> QImage | None:
+        target = self._window_target
+        if target is None:
+            return None
+
+        if target.window_handle is not None:
+            screen = self._screen_for_rect(target.rect)
+            if screen is not None:
+                pixmap = screen.grabWindow(target.window_handle)
+                if not pixmap.isNull():
+                    return pixmap.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
+
+        if target.rect is None:
+            return None
+        return self._crop_image(self._grab_virtual_desktop_image(), target.rect)
+
+    def _grab_selected_region_image(self) -> QImage | None:
+        target = self._region_target
+        if target is None or target.rect is None:
+            return None
+        return self._crop_image(self._grab_virtual_desktop_image(), target.rect)
+
+    def _grab_virtual_desktop_image(self) -> QImage | None:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return None
+
+        geometry = self._virtual_desktop_geometry()
+        image = QImage(geometry.size(), QImage.Format.Format_RGBA8888)
+        image.fill(Qt.GlobalColor.black)
+
+        painter = QPainter(image)
+        for screen in screens:
+            pixmap = screen.grabWindow(0)
+            if pixmap.isNull():
+                continue
+            painter.drawPixmap(screen.geometry().topLeft() - geometry.topLeft(), pixmap)
+        painter.end()
+        return image
+
+    def _crop_image(self, image: QImage | None, global_rect: QRect) -> QImage | None:
+        if image is None or image.isNull():
+            return None
+
+        desktop_geometry = self._virtual_desktop_geometry()
+        local_rect = QRect(global_rect)
+        local_rect.translate(-desktop_geometry.topLeft())
+        local_rect = local_rect.intersected(image.rect())
+        if local_rect.width() < MIN_SELECTION_SIZE or local_rect.height() < MIN_SELECTION_SIZE:
+            return None
+        return image.copy(local_rect)
+
+    def _qimage_to_bgr_frame(self, image: QImage) -> np.ndarray | None:
+        if self._cv2 is None:
+            return None
+
+        converted = image.convertToFormat(QImage.Format.Format_RGBA8888)
+        width = converted.width()
+        height = converted.height()
         if width <= 0 or height <= 0:
             return None
 
-        ptr = image.bits()
+        ptr = converted.bits()
         if hasattr(ptr, "setsize"):
-            ptr.setsize(image.sizeInBytes())
+            ptr.setsize(converted.sizeInBytes())
             buffer = ptr
         else:
-            buffer = ptr.asstring(image.sizeInBytes())
+            buffer = ptr.asstring(converted.sizeInBytes())
         frame_rgba = np.frombuffer(buffer, dtype=np.uint8).reshape((height, width, 4))
 
         target_width, target_height = self._selected_resolution()
@@ -659,12 +1251,6 @@ class ScreenCapturePanel(QWidget):
         interval_ms = max(8, int(1000 / max(1, self._selected_fps())))
         self._preview_timer.start(interval_ms)
 
-    def _current_screen(self):
-        window_handle = self.window().windowHandle() if self.window() is not None else None
-        if window_handle is not None and window_handle.screen() is not None:
-            return window_handle.screen()
-        return QGuiApplication.primaryScreen()
-
     def _set_recording_state(self, state: RecordingState) -> None:
         self._recording_state = state
         is_recording = state == RECORDING
@@ -673,6 +1259,7 @@ class ScreenCapturePanel(QWidget):
         self._record_button.setText("Resume" if is_paused else "Record")
         self._pause_button.setEnabled(is_recording)
         self._stop_button.setEnabled(is_recording or is_paused)
+        self._update_floating_controller()
 
     def _update_duration_display(self, total_seconds: float) -> None:
         seconds = max(0, int(total_seconds))
@@ -686,7 +1273,12 @@ class ScreenCapturePanel(QWidget):
         if button is None:
             return
         self._capture_mode = str(button.property("captureMode"))
-        self.set_status(f"{button.text()} selected.")
+        self._update_capture_target_ui()
+        mode_label = button.text()
+        if self._capture_mode == "full_screen":
+            self.set_status(f"{mode_label} selected. The recorder hides itself when capture starts.")
+        else:
+            self.set_status(f"{mode_label} selected. Choose a target before capture.")
 
     def _on_frame_rate_changed(self) -> None:
         self._restart_preview_timer()
@@ -707,7 +1299,10 @@ class ScreenCapturePanel(QWidget):
         self._system_audio_switch.setChecked(True)
         self._external_mic_switch.setChecked(False)
         self._capture_mode = "full_screen"
+        self._window_target = None
+        self._region_target = None
         self._restart_preview_timer()
+        self._update_capture_target_ui()
         self.set_status("Defaults restored.")
 
     def _build_recording_path(self) -> Path:
@@ -821,3 +1416,308 @@ class ScreenCapturePanel(QWidget):
             "font-weight: 700;"
             "}"
         )
+
+    def _ensure_capture_target_ready(self, action: str) -> bool:
+        if self._capture_mode == "full_screen":
+            return True
+
+        target = self._current_target()
+        if target is not None:
+            return True
+
+        self._pending_action = action
+        self._begin_target_selection()
+        return False
+
+    def _begin_target_selection(self) -> None:
+        if self._recording_state != IDLE:
+            self.set_status("Stop the current recording before changing the capture target.")
+            return
+        if self._selection_overlay is not None:
+            return
+        if self._capture_mode == "full_screen":
+            self.set_status("Full screen mode captures the entire desktop. No extra target selection is needed.")
+            return
+        if self._capture_mode == "window" and system() != "Windows":
+            self.set_status("Window picking is currently supported on Windows in this build.")
+            return
+
+        self.set_status("Hide recorder and choose a capture target.")
+        self._run_hidden_host_action(self._show_target_selector, restore_after=False)
+
+    def _show_target_selector(self) -> None:
+        excluded_handles = self._excluded_window_handles()
+        self._selection_overlay = CaptureSelectorOverlay(self._capture_mode, excluded_handles=excluded_handles)
+        self._selection_overlay.selection_made.connect(self._on_target_selected)
+        self._selection_overlay.selection_cancelled.connect(self._on_target_selection_cancelled)
+        self._selection_overlay.show()
+
+    def _on_target_selected(self, target: CaptureTarget) -> None:
+        if self._selection_overlay is not None:
+            self._selection_overlay.deleteLater()
+        self._selection_overlay = None
+
+        if target.mode == "window":
+            self._window_target = target
+            self.set_status(f"Window selected: {target.title}")
+        else:
+            self._region_target = target
+            if target.rect is not None:
+                self.set_status(f"Area selected: {target.rect.width()} x {target.rect.height()}")
+            else:
+                self.set_status("Area selected.")
+
+        self._restore_host_window()
+        self._update_capture_target_ui()
+
+        pending_action = self._pending_action
+        self._pending_action = None
+        if pending_action == "record":
+            QTimer.singleShot(120, self.start_or_resume_recording)
+        elif pending_action == "snapshot":
+            QTimer.singleShot(120, self.capture_snapshot)
+
+    def _on_target_selection_cancelled(self) -> None:
+        if self._selection_overlay is not None:
+            self._selection_overlay.deleteLater()
+        self._selection_overlay = None
+        self._restore_host_window()
+        self._pending_action = None
+        self.set_status("Capture target selection cancelled.")
+
+    def _current_target(self) -> CaptureTarget | None:
+        if self._capture_mode == "window":
+            return self._window_target
+        if self._capture_mode == "region":
+            return self._region_target
+        return CaptureTarget(mode="full_screen", rect=self._virtual_desktop_geometry(), title="Entire desktop")
+
+    def _update_capture_target_ui(self) -> None:
+        if self._capture_mode == "full_screen":
+            self._target_summary_label.setText("Entire desktop")
+            self._target_hint_label.setText("Use this when you want the whole workspace. The recorder hides itself when capture starts.")
+            self._select_target_button.setText("Desktop Ready")
+            self._select_target_button.setEnabled(False)
+            return
+
+        if self._capture_mode == "window":
+            target = self._window_target
+            self._target_summary_label.setText(target.title if target is not None else "No window selected")
+            self._target_hint_label.setText("Click Choose Window, then click the app or window you want to capture.")
+            self._select_target_button.setText("Choose Window")
+            self._select_target_button.setEnabled(True)
+            return
+
+        target = self._region_target
+        if target is not None and target.rect is not None:
+            self._target_summary_label.setText(f"{target.rect.width()} x {target.rect.height()} area")
+        else:
+            self._target_summary_label.setText("No area selected")
+        self._target_hint_label.setText("Click Choose Area, then drag across the region you want to capture.")
+        self._select_target_button.setText("Choose Area")
+        self._select_target_button.setEnabled(True)
+
+    def _run_hidden_host_action(self, callback, restore_after: bool) -> None:  # noqa: ANN001
+        self._hide_host_window()
+
+        def runner() -> None:
+            try:
+                callback()
+            finally:
+                if restore_after:
+                    self._restore_host_window()
+
+        QTimer.singleShot(HOST_HIDE_DELAY_MS, runner)
+
+    def _hide_host_window(self) -> None:
+        host = self.window()
+        if host is None or self._host_window_hidden:
+            return
+
+        self._restore_window_maximized = bool(host.isMaximized())
+        host.hide()
+        QApplication.processEvents()
+        self._host_window_hidden = True
+
+    def _restore_host_window(self) -> None:
+        host = self.window()
+        if host is None or not self._host_window_hidden:
+            return
+
+        if self._restore_window_maximized:
+            host.showMaximized()
+        else:
+            host.showNormal()
+        host.raise_()
+        host.activateWindow()
+        QApplication.processEvents()
+        self._host_window_hidden = False
+
+    def _start_recording_now(self) -> None:
+        if self._cv2 is None or self._recorder is None:
+            self._restore_host_window()
+            self.set_status("Capture backend is unavailable.")
+            return
+
+        frame_bgr = self._grab_screen_frame()
+        if frame_bgr is None:
+            self._restore_host_window()
+            self.set_status("Unable to capture a screen frame.")
+            return
+
+        output_path = self._build_recording_path()
+        height, width = frame_bgr.shape[:2]
+        try:
+            self._recorder.start(output_path=output_path, fps=float(self._selected_fps()), size=(width, height))
+        except RuntimeError as exc:
+            self._restore_host_window()
+            self.set_status(str(exc))
+            return
+
+        self._hidden_for_recording = True
+        self._elapsed_before_pause = 0.0
+        self._recording_started_at = perf_counter()
+        self._set_recording_state(RECORDING)
+        self._show_floating_controller()
+        self._show_focus_overlay()
+        self.set_status(f"Recording to {output_path}. Use the mini controller to resume, pause, or stop.")
+
+    def _capture_snapshot_now(self) -> None:
+        if self._cv2 is None:
+            self.set_status("Capture backend is unavailable.")
+            return
+
+        frame_bgr = self._grab_screen_frame()
+        if frame_bgr is None:
+            self.set_status("Unable to capture a snapshot.")
+            return
+
+        output_path = self._build_snapshot_path()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self._cv2.imwrite(str(output_path), frame_bgr):
+            self.set_status(f"Unable to save snapshot to {output_path}")
+            return
+
+        self.set_recent_capture(output_path.name)
+        self.set_status(f"Saved snapshot to {output_path}")
+        self.snapshot_saved.emit(str(output_path))
+
+    def _show_floating_controller(self) -> None:
+        if self._floating_controller is None:
+            self._floating_controller = FloatingCaptureController()
+            self._floating_controller.resume_requested.connect(self.start_or_resume_recording)
+            self._floating_controller.pause_requested.connect(self.pause_recording)
+            self._floating_controller.stop_requested.connect(self.stop_recording)
+
+        self._position_floating_controller()
+        self._floating_controller.sync_state(self._recording_state)
+        self._floating_controller.show()
+        self._floating_controller.raise_()
+        _raise_window_topmost(self._floating_controller)
+
+    def _teardown_floating_controller(self) -> None:
+        if self._floating_controller is not None:
+            self._floating_controller.hide()
+            self._floating_controller.deleteLater()
+        self._floating_controller = None
+
+    def _update_floating_controller(self) -> None:
+        if self._floating_controller is not None:
+            self._floating_controller.sync_state(self._recording_state)
+
+    def _position_floating_controller(self) -> None:
+        if self._floating_controller is None:
+            return
+
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            return
+
+        self._floating_controller.adjustSize()
+        geometry = screen.availableGeometry()
+        x = geometry.right() - self._floating_controller.width() - 20
+        y = geometry.top() + 20
+        self._floating_controller.move(x, y)
+
+    def _show_focus_overlay(self) -> None:
+        if self._capture_mode == "full_screen" or system() != "Windows":
+            self._teardown_focus_overlay()
+            return
+
+        if self._focus_overlay is None:
+            self._focus_overlay = RecordingFocusOverlay(self._recording_focus_target)
+
+        self._focus_overlay.start()
+        if self._floating_controller is not None:
+            self._floating_controller.raise_()
+            _raise_window_topmost(self._floating_controller)
+
+    def _teardown_focus_overlay(self) -> None:
+        if self._focus_overlay is not None:
+            self._focus_overlay.stop()
+            self._focus_overlay.deleteLater()
+        self._focus_overlay = None
+
+    def _recording_focus_target(self) -> CaptureTarget | None:
+        if self._capture_mode == "window":
+            target = self._window_target
+            if target is None or target.window_handle is None:
+                return target
+            live_rect = _window_rect_from_handle(target.window_handle)
+            if live_rect is None:
+                return target
+            return CaptureTarget(
+                mode=target.mode,
+                rect=live_rect,
+                window_handle=target.window_handle,
+                title=target.title,
+            )
+        if self._capture_mode == "region":
+            return self._region_target
+        return None
+
+    def _finish_hidden_recording_session(self) -> None:
+        self._hidden_for_recording = False
+        self._teardown_floating_controller()
+        self._teardown_focus_overlay()
+        self._restore_host_window()
+
+    def _screen_for_rect(self, rect: QRect | None):
+        if rect is None:
+            return QGuiApplication.primaryScreen()
+
+        center = rect.center()
+        for screen in QGuiApplication.screens():
+            if screen.geometry().contains(center):
+                return screen
+        return QGuiApplication.primaryScreen()
+
+    def _virtual_desktop_geometry(self) -> QRect:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return QRect(0, 0, 1920, 1080)
+
+        geometry = QRect(screens[0].geometry())
+        for screen in screens[1:]:
+            geometry = geometry.united(screen.geometry())
+        return geometry
+
+    def _excluded_window_handles(self) -> set[int]:
+        handles: set[int] = set()
+        host = self.window()
+        if host is not None:
+            try:
+                handles.add(int(host.winId()))
+            except TypeError:
+                pass
+        if self._floating_controller is not None:
+            try:
+                handles.add(int(self._floating_controller.winId()))
+            except TypeError:
+                pass
+        if self._focus_overlay is not None:
+            try:
+                handles.add(int(self._focus_overlay.winId()))
+            except TypeError:
+                pass
+        return handles

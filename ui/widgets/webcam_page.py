@@ -310,13 +310,13 @@ class WebcamPage(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self._build_preview_panel(), 1)
         layout.addWidget(self._build_settings_sidebar())
+        layout.addWidget(self._build_preview_panel(), 1)
         return layout
 
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()
-        panel.setStyleSheet("background: #000000; border-right: 1px solid #1e293b; border-bottom: 1px solid #1e293b;")
+        panel.setStyleSheet("background: #000000; border-left: 1px solid #1e293b; border-bottom: 1px solid #1e293b;")
 
         stack = QWidget()
         grid = QGridLayout()

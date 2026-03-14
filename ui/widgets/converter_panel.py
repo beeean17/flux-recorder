@@ -101,14 +101,14 @@ class ConverterPanel(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self._build_main_panel(), 1)
         layout.addWidget(self._build_sidebar())
+        layout.addWidget(self._build_main_panel(), 1)
         return layout
 
     def _build_main_panel(self) -> QWidget:
         panel = QFrame()
         panel.setStyleSheet(
-            f"background: {SURFACE}; border-right: 1px solid {BORDER}; border-bottom: 1px solid {BORDER};"
+            f"background: {SURFACE}; border-left: 1px solid {BORDER}; border-bottom: 1px solid {BORDER};"
         )
 
         badge = QLabel("File conversion workspace")
@@ -117,7 +117,7 @@ class ConverterPanel(QWidget):
         title = QLabel("Convert images and videos with one action.")
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 28px; font-weight: 700;")
 
-        subtitle = QLabel("Choose a target format on the right, then pick a file to convert.")
+        subtitle = QLabel("Choose a target format on the left, then pick a file to convert.")
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
 
