@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.app_mode import AppMode, CONVERT_MODE, DASHBOARD_MODE, SCREEN_MODE, WEBCAM_MODE
-from core.converter import build_output_path, convert
+from core.conversion_service import ConversionRequest, convert
 from core.recording_state import IDLE, PAUSED
 from ui.widgets.converter_panel import ConverterPanel
 from ui.widgets.dashboard_page import ActivityItem, DashboardPage
@@ -26,16 +26,16 @@ class ConverterThread(QThread):
     conversion_finished = pyqtSignal(object)
     conversion_failed = pyqtSignal(str)
     status_changed = pyqtSignal(str)
+    progress_changed = pyqtSignal(int)
 
-    def __init__(self, input_path: Path, output_path: Path) -> None:
+    def __init__(self, request: ConversionRequest) -> None:
         super().__init__()
-        self._input_path = input_path
-        self._output_path = output_path
+        self._request = request
 
     def run(self) -> None:
-        self.status_changed.emit("Converting media...")
+        self.status_changed.emit(f"Converting {self._request.mode}...")
         try:
-            converted_path = convert(self._input_path, self._output_path)
+            converted_path = convert(self._request, progress_callback=self.progress_changed.emit)
         except RuntimeError as exc:
             self.conversion_failed.emit(str(exc))
             return
@@ -55,6 +55,8 @@ class MainWindow(QMainWindow):
         self._recent_activity: list[ActivityItem] = []
         self._webcam_output_directory = self._default_video_directory()
         self._screen_output_directory = self._default_video_directory()
+        self._converter_output_directory = self._default_media_directory()
+        self._converter_source_directory = self._default_media_directory()
 
         self.setWindowTitle(self._window_title(mode))
         self.resize(1480, 980)
@@ -104,7 +106,10 @@ class MainWindow(QMainWindow):
     def _setup_convert_mode(self) -> None:
         self.setStyleSheet("QMainWindow { background: #0d1511; }")
         self._converter_panel = ConverterPanel()
+        self._converter_panel.set_output_path(self._converter_output_directory)
         self._converter_panel.back_requested.connect(self.on_back_to_menu_requested)
+        self._converter_panel.browse_output_requested.connect(self.on_browse_converter_output_requested)
+        self._converter_panel.browse_source_requested.connect(self.on_browse_converter_source_requested)
         self._converter_panel.convert_requested.connect(self.on_convert_requested)
         self.setCentralWidget(self._converter_panel)
 
@@ -164,44 +169,69 @@ class MainWindow(QMainWindow):
             self._screen_capture_panel.set_output_path(self._screen_output_directory)
             self._screen_capture_panel.set_status(f"Output directory updated to {self._screen_output_directory}")
 
-    def on_convert_requested(self, target_format: str) -> None:
-        if self._converter_thread is not None and self._converter_thread.isRunning():
+    def on_browse_converter_output_requested(self) -> None:
+        target_directory = QFileDialog.getExistingDirectory(
+            self,
+            "Select conversion output directory",
+            str(self._converter_output_directory),
+        )
+        if not target_directory:
             return
+
+        self._converter_output_directory = Path(target_directory)
+        if self._converter_panel is not None:
+            self._converter_panel.set_output_path(self._converter_output_directory)
+            self._converter_panel.set_status(f"Output folder updated to {self._converter_output_directory}")
+
+    def on_browse_converter_source_requested(self, mode: str) -> None:
+        if mode == "video":
+            title = "Select a video to convert"
+            file_filter = "Video Files (*.mp4 *.avi *.mov *.mkv *.m4v *.wmv *.webm)"
+        else:
+            title = "Select an image to convert"
+            file_filter = "Image Files (*.png *.jpg *.jpeg *.bmp *.webp *.ico)"
 
         source_path_str, _ = QFileDialog.getOpenFileName(
             self,
-            "Select a file to convert",
-            str(self._default_media_directory()),
-            (
-                "Media Files (*.mp4 *.avi *.mov *.mkv *.png *.jpg *.jpeg *.webp *.gif *.bmp);;"
-                "Video Files (*.mp4 *.avi *.mov *.mkv);;"
-                "Image Files (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"
-            ),
+            title,
+            str(self._converter_source_directory),
+            file_filter,
         )
         if not source_path_str:
-            self._set_converter_status("Conversion cancelled.")
             return
 
-        input_path = Path(source_path_str)
-        output_path = build_output_path(input_path, target_format)
-        self._converter_thread = ConverterThread(input_path, output_path)
+        source_path = Path(source_path_str)
+        self._converter_source_directory = source_path.parent
+        if self._converter_panel is not None:
+            self._converter_panel.set_selected_source(mode, source_path)
+
+    def on_convert_requested(self, request: ConversionRequest) -> None:
+        if self._converter_thread is not None and self._converter_thread.isRunning():
+            return
+
+        self._converter_thread = ConverterThread(request)
         self._converter_thread.status_changed.connect(self._set_converter_status)
+        self._converter_thread.progress_changed.connect(self._set_converter_progress)
         self._converter_thread.conversion_finished.connect(self.on_conversion_finished)
         self._converter_thread.conversion_failed.connect(self.on_conversion_failed)
         self._converter_thread.finished.connect(self.on_conversion_thread_finished)
 
         self._set_converter_enabled(False)
+        self._begin_converter_progress()
         self._converter_thread.start()
 
     def on_conversion_finished(self, output_path: Path) -> None:
         self._set_converter_status(f"Converted file saved to {output_path}")
         if self._converter_panel is not None:
             self._converter_panel.set_recent_result(output_path.name)
+            self._converter_panel.finish_conversion_progress(success=True)
         self._add_recent_activity(output_path.name, "#10b981")
         QMessageBox.information(self, "Conversion Complete", f"Saved converted file:\n{output_path}")
 
     def on_conversion_failed(self, message: str) -> None:
         self._set_converter_status("Conversion failed.")
+        if self._converter_panel is not None:
+            self._converter_panel.finish_conversion_progress(success=False)
         QMessageBox.critical(self, "Conversion Error", message)
 
     def on_conversion_thread_finished(self) -> None:
@@ -322,9 +352,17 @@ class MainWindow(QMainWindow):
         if self._converter_panel is not None:
             self._converter_panel.set_status(message)
 
+    def _set_converter_progress(self, value: int) -> None:
+        if self._converter_panel is not None:
+            self._converter_panel.set_conversion_progress(value)
+
     def _set_converter_enabled(self, enabled: bool) -> None:
         if self._converter_panel is not None:
             self._converter_panel.set_conversion_enabled(enabled)
+
+    def _begin_converter_progress(self) -> None:
+        if self._converter_panel is not None:
+            self._converter_panel.begin_conversion_progress()
 
     def _add_recent_activity(self, title: str, color: str) -> None:
         self._recent_activity.insert(0, ActivityItem(title=title, timestamp="Just now", color=color))

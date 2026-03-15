@@ -19,9 +19,4 @@ Video recorder / Screen recorder / format converter
 
 
 
-
-
-
-
-ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇfsfsfsfsfsfsfsfsfadadadadad
-sfsfsfsfsf
+werfwfwefwefwefwf

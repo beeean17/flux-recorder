@@ -13,12 +13,13 @@ from PyQt6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -612,11 +613,10 @@ class ScreenCapturePanel(QWidget):
         self._path_input.setReadOnly(True)
         self._path_input.setStyleSheet(self._path_input_style())
 
-        self._resolution_combo = QComboBox()
-        self._resolution_combo.addItems(
-            ["1920 x 1080 (1080p)", "1280 x 720 (720p)", "2560 x 1440 (2K)", "3840 x 2160 (4K)"]
-        )
-        self._resolution_combo.setStyleSheet(self._combo_style())
+        self._output_size_value = QLabel()
+        self._output_size_value.setWordWrap(True)
+        self._output_size_value.setMinimumHeight(44)
+        self._output_size_value.setStyleSheet(self._readonly_info_style())
 
         self._system_audio_switch = self._build_switch(True)
         self._external_mic_switch = self._build_switch(False)
@@ -630,12 +630,15 @@ class ScreenCapturePanel(QWidget):
         self._stop_button = QPushButton("Stop")
         self._target_summary_label = QLabel()
         self._target_summary_label.setWordWrap(True)
+        self._target_summary_label.setMinimumHeight(22)
         self._target_summary_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
         self._target_hint_label = QLabel()
         self._target_hint_label.setWordWrap(True)
+        self._target_hint_label.setMinimumHeight(38)
         self._target_hint_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         self._select_target_button = QPushButton()
         self._select_target_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._select_target_button.setMinimumHeight(44)
         self._select_target_button.clicked.connect(lambda: self._begin_target_selection())
         self._select_target_button.setStyleSheet(self._sidebar_button_style())
 
@@ -802,9 +805,41 @@ class ScreenCapturePanel(QWidget):
         return layout
 
     def _build_sidebar(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setFixedWidth(340)
+        scroll_area.setStyleSheet(
+            f"""
+            QScrollArea {{
+                background: {SIDEBAR};
+                border: none;
+            }}
+            QWidget#screen_capture_sidebar {{
+                background: {SIDEBAR};
+            }}
+            QScrollBar:vertical {{
+                background: {SIDEBAR};
+                width: 10px;
+                margin: 8px 4px 8px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #2a223d;
+                border-radius: 5px;
+                min-height: 36px;
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            """
+        )
+
         sidebar = QFrame()
-        sidebar.setFixedWidth(320)
-        sidebar.setStyleSheet(f"background: {SIDEBAR};")
+        sidebar.setObjectName("screen_capture_sidebar")
+        sidebar.setMinimumWidth(320)
+        sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(22, 24, 22, 24)
@@ -817,7 +852,7 @@ class ScreenCapturePanel(QWidget):
 
         title = QLabel("Capture Settings")
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 20px; font-weight: 700;")
-        subtitle = QLabel("Pick what to capture first, then hide the recorder while capture runs.")
+        subtitle = QLabel("Adjust recording quality, audio options, and the output location.")
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
@@ -825,12 +860,8 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addSpacing(4)
-        layout.addWidget(self._build_section_title("Capture Mode"))
-        layout.addWidget(self._build_sidebar_capture_toggle())
-        layout.addWidget(self._build_target_card())
-        layout.addSpacing(8)
         layout.addWidget(self._build_section_title("Video Settings"))
-        layout.addWidget(self._build_resolution_group())
+        layout.addWidget(self._build_output_size_group())
         layout.addLayout(self._build_frame_rate_group())
         layout.addSpacing(4)
         layout.addWidget(self._build_section_title("Audio Source"))
@@ -848,12 +879,20 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(restore_button)
 
         sidebar.setLayout(layout)
-        return sidebar
+        scroll_area.setWidget(sidebar)
+        return scroll_area
 
     def _build_main_canvas(self) -> QWidget:
         frame = QFrame()
+        frame.setObjectName("screen_capture_main_canvas")
         frame.setStyleSheet(
-            f"background: {SURFACE}; border-left: 1px solid {BORDER}; border-bottom: 1px solid {BORDER};"
+            f"""
+            QFrame#screen_capture_main_canvas {{
+                background: {SURFACE};
+                border-left: 1px solid {BORDER};
+                border-bottom: 1px solid {BORDER};
+            }}
+            """
         )
 
         badge = QLabel("Screen capture workflow")
@@ -874,13 +913,46 @@ class ScreenCapturePanel(QWidget):
         helper.setWordWrap(True)
         helper.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
 
+        setup_title = QLabel("Capture Setup")
+        setup_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 16px; font-weight: 700;")
+
+        setup_hint = QLabel("Choose the capture mode on the right, then confirm the exact target before you record.")
+        setup_hint.setWordWrap(True)
+        setup_hint.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
+        self._window_recording_notice = QLabel()
+        self._window_recording_notice.setWordWrap(True)
+        self._window_recording_notice.setStyleSheet(f"color: #fbbf24; font-size: 12px; font-weight: 600;")
+        self._window_recording_notice.hide()
+
+        setup_panel = QFrame()
+        setup_panel.setObjectName("screen_capture_setup_panel")
+        setup_panel.setStyleSheet(
+            f"""
+            QFrame#screen_capture_setup_panel {{
+                background: #120f1d;
+                border: 1px solid {BORDER};
+                border-radius: 20px;
+            }}
+            """
+        )
+
+        setup_layout = QVBoxLayout()
+        setup_layout.setContentsMargins(24, 24, 24, 24)
+        setup_layout.setSpacing(18)
+        setup_layout.addWidget(setup_title)
+        setup_layout.addWidget(setup_hint)
+        setup_layout.addWidget(self._window_recording_notice)
+        setup_layout.addWidget(self._build_sidebar_capture_toggle())
+        setup_layout.addWidget(self._build_target_card())
+        setup_panel.setLayout(setup_layout)
+
         layout = QVBoxLayout()
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
         layout.addWidget(badge, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(title)
         layout.addWidget(subtitle)
-        layout.addStretch(1)
+        layout.addWidget(setup_panel)
         layout.addWidget(helper, 0, Qt.AlignmentFlag.AlignCenter)
         layout.addStretch(1)
         frame.setLayout(layout)
@@ -888,8 +960,16 @@ class ScreenCapturePanel(QWidget):
 
     def _build_footer(self) -> QWidget:
         footer = QFrame()
+        footer.setObjectName("screen_capture_footer")
         footer.setFixedHeight(104)
-        footer.setStyleSheet(f"background: #0d0a15; border-top: 1px solid {BORDER};")
+        footer.setStyleSheet(
+            f"""
+            QFrame#screen_capture_footer {{
+                background: #0d0a15;
+                border-top: 1px solid {BORDER};
+            }}
+            """
+        )
 
         recent_title = QLabel("Recent Capture")
         recent_title.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 10px; font-weight: 700; text-transform: uppercase;")
@@ -911,10 +991,6 @@ class ScreenCapturePanel(QWidget):
         self._record_button.setStyleSheet(self._accent_button_style())
         self._snapshot_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._snapshot_button.setStyleSheet(self._sidebar_button_style())
-        self._pause_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._pause_button.setStyleSheet(self._footer_secondary_button_style())
-        self._stop_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._stop_button.setStyleSheet(self._footer_secondary_button_style())
 
         center_layout = QHBoxLayout()
         center_layout.setContentsMargins(0, 0, 0, 0)
@@ -922,20 +998,26 @@ class ScreenCapturePanel(QWidget):
         center_layout.addWidget(self._record_button)
         center_layout.addWidget(self._snapshot_button)
 
-        right_layout = QHBoxLayout()
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(12)
-        right_layout.addWidget(self._timer_label)
-        right_layout.addWidget(self._pause_button)
-        right_layout.addWidget(self._stop_button)
+        left_panel = QWidget()
+        left_panel.setLayout(recent_layout)
+
+        center_panel = QWidget()
+        center_panel.setLayout(center_layout)
+
+        side_width = left_panel.sizeHint().width()
+        left_panel.setFixedWidth(side_width)
+
+        right_spacer = QWidget()
+        right_spacer.setFixedWidth(side_width)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(24, 0, 24, 0)
         layout.setSpacing(22)
-        layout.addLayout(recent_layout, 1)
-        layout.addLayout(center_layout)
+        layout.addWidget(left_panel, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addStretch(1)
-        layout.addLayout(right_layout)
+        layout.addWidget(center_panel, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch(1)
+        layout.addWidget(right_spacer, 0)
         footer.setLayout(layout)
         return footer
 
@@ -946,8 +1028,15 @@ class ScreenCapturePanel(QWidget):
 
     def _build_sidebar_capture_toggle(self) -> QWidget:
         container = QFrame()
+        container.setObjectName("screen_capture_mode_toggle")
         container.setStyleSheet(
-            f"background: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 14px;"
+            f"""
+            QFrame#screen_capture_mode_toggle {{
+                background: {SURFACE_ALT};
+                border: 1px solid {BORDER};
+                border-radius: 14px;
+            }}
+            """
         )
 
         layout = QHBoxLayout()
@@ -997,8 +1086,17 @@ class ScreenCapturePanel(QWidget):
 
     def _build_target_card(self) -> QWidget:
         card = QFrame()
+        card.setObjectName("screen_capture_target_card")
+        card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        card.setMinimumHeight(168)
         card.setStyleSheet(
-            f"background: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 14px;"
+            f"""
+            QFrame#screen_capture_target_card {{
+                background: {SURFACE_ALT};
+                border: 1px solid {BORDER};
+                border-radius: 16px;
+            }}
+            """
         )
 
         layout = QVBoxLayout()
@@ -1011,20 +1109,20 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(title)
         layout.addWidget(self._target_summary_label)
         layout.addWidget(self._target_hint_label)
+        layout.addStretch(1)
         layout.addWidget(self._select_target_button)
         card.setLayout(layout)
         return card
 
-    def _build_resolution_group(self) -> QWidget:
+    def _build_output_size_group(self) -> QWidget:
         wrapper = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
-        caption = QLabel("Resolution")
+        caption = QLabel("Output Size")
         caption.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 700; text-transform: uppercase;")
-        self._resolution_combo.currentTextChanged.connect(lambda _text: self.set_status("Resolution updated."))
         layout.addWidget(caption)
-        layout.addWidget(self._resolution_combo)
+        layout.addWidget(self._output_size_value)
         wrapper.setLayout(layout)
         return wrapper
 
@@ -1221,10 +1319,6 @@ class ScreenCapturePanel(QWidget):
             buffer = ptr.asstring(converted.sizeInBytes())
         frame_rgba = np.frombuffer(buffer, dtype=np.uint8).reshape((height, width, 4))
 
-        target_width, target_height = self._selected_resolution()
-        if (target_width, target_height) != (width, height):
-            frame_rgba = self._cv2.resize(frame_rgba, (target_width, target_height), interpolation=self._cv2.INTER_AREA)
-
         return self._cv2.cvtColor(frame_rgba, self._cv2.COLOR_RGBA2BGR)
 
     def _selected_fps(self) -> int:
@@ -1235,15 +1329,6 @@ class ScreenCapturePanel(QWidget):
             return int(checked_button.text())
         except ValueError:
             return DEFAULT_CAPTURE_FPS
-
-    def _selected_resolution(self) -> tuple[int, int]:
-        text = self._resolution_combo.currentText()
-        try:
-            raw = text.split("(")[0].strip()
-            width_str, height_str = [part.strip() for part in raw.split("x")]
-            return int(width_str), int(height_str)
-        except (IndexError, ValueError):
-            return 1920, 1080
 
     def _restart_preview_timer(self) -> None:
         if self._preview_timer is None:
@@ -1295,7 +1380,6 @@ class ScreenCapturePanel(QWidget):
         fps_buttons = self._frame_rate_buttons.buttons()
         if fps_buttons:
             fps_buttons[0].setChecked(True)
-        self._resolution_combo.setCurrentIndex(0)
         self._system_audio_switch.setChecked(True)
         self._external_mic_switch.setChecked(False)
         self._capture_mode = "full_screen"
@@ -1316,9 +1400,9 @@ class ScreenCapturePanel(QWidget):
 
         return datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    def _combo_style(self) -> str:
+    def _readonly_info_style(self) -> str:
         return (
-            f"QComboBox {{"
+            "QLabel {"
             f"background: {SURFACE_ALT};"
             f"color: {TEXT_PRIMARY};"
             f"border: 1px solid {BORDER};"
@@ -1326,7 +1410,6 @@ class ScreenCapturePanel(QWidget):
             "padding: 10px 12px;"
             "font-size: 12px;"
             "}"
-            "QComboBox::drop-down { border: none; width: 24px; }"
         )
 
     def _path_input_style(self) -> str:
@@ -1498,6 +1581,8 @@ class ScreenCapturePanel(QWidget):
             self._target_hint_label.setText("Use this when you want the whole workspace. The recorder hides itself when capture starts.")
             self._select_target_button.setText("Desktop Ready")
             self._select_target_button.setEnabled(False)
+            self._output_size_value.setText(self._capture_dimensions_text(self._virtual_desktop_geometry()))
+            self._window_recording_notice.hide()
             return
 
         if self._capture_mode == "window":
@@ -1506,6 +1591,9 @@ class ScreenCapturePanel(QWidget):
             self._target_hint_label.setText("Click Choose Window, then click the app or window you want to capture.")
             self._select_target_button.setText("Choose Window")
             self._select_target_button.setEnabled(True)
+            self._output_size_value.setText(self._capture_dimensions_text(target.rect if target is not None else None))
+            self._window_recording_notice.setText("Window recording does not support resizing the selected window while recording.")
+            self._window_recording_notice.show()
             return
 
         target = self._region_target
@@ -1516,6 +1604,13 @@ class ScreenCapturePanel(QWidget):
         self._target_hint_label.setText("Click Choose Area, then drag across the region you want to capture.")
         self._select_target_button.setText("Choose Area")
         self._select_target_button.setEnabled(True)
+        self._output_size_value.setText(self._capture_dimensions_text(target.rect if target is not None else None))
+        self._window_recording_notice.hide()
+
+    def _capture_dimensions_text(self, rect: QRect | None) -> str:
+        if rect is None:
+            return "Matches the selected target size automatically."
+        return f"{rect.width()} x {rect.height()} px (saved at original capture size)"
 
     def _run_hidden_host_action(self, callback, restore_after: bool) -> None:  # noqa: ANN001
         self._hide_host_window()

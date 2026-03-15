@@ -6,7 +6,8 @@ from platform import system
 from time import perf_counter
 
 import numpy as np
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QRectF, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -105,31 +106,22 @@ class WebcamPage(QWidget):
             """
         )
 
-        self._photo_button = self._build_capture_button("PHOTO", "#ffffff", "#0f172a", large=False)
+        self._photo_button = self._build_capture_button(
+            "",
+            "#ffffff",
+            "#0f172a",
+            large=False,
+            icon=self._build_camera_icon("#0f172a"),
+            tooltip="Take Photo",
+        )
         self._record_button = self._build_capture_button("REC", "#dc2626", "white", large=True)
-        self._pause_button = QPushButton("Pause")
-        self._pause_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._pause_button.setFixedHeight(40)
-        self._pause_button.setStyleSheet(
-            """
-            QPushButton {
-                background: #111827;
-                color: #cbd5e1;
-                border: 1px solid #334155;
-                border-radius: 12px;
-                padding: 0 18px;
-                font-size: 13px;
-                font-weight: 700;
-            }
-            QPushButton:hover {
-                border-color: #475569;
-                color: white;
-            }
-            QPushButton:disabled {
-                color: #475569;
-                border-color: #1e293b;
-            }
-            """
+        self._pause_button = self._build_capture_button(
+            "",
+            "#111827",
+            "#cbd5e1",
+            large=False,
+            icon=self._build_pause_icon("#cbd5e1"),
+            tooltip="Pause Recording",
         )
         self._pause_button.clicked.connect(self.pause_recording)
         self._photo_button.clicked.connect(self.capture_photo)
@@ -498,13 +490,24 @@ class WebcamPage(QWidget):
             )
             right_layout.addWidget(button)
 
-        layout = QHBoxLayout()
+        left_panel = QWidget()
+        left_panel.setLayout(recent_layout)
+
+        center_panel = QWidget()
+        center_panel.setLayout(controls_layout)
+
+        right_panel = QWidget()
+        right_panel.setLayout(right_layout)
+
+        layout = QGridLayout()
         layout.setContentsMargins(24, 0, 24, 0)
-        layout.setSpacing(22)
-        layout.addLayout(recent_layout, 1)
-        layout.addLayout(controls_layout)
-        layout.addStretch(1)
-        layout.addLayout(right_layout)
+        layout.setHorizontalSpacing(22)
+        layout.setVerticalSpacing(0)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(2, 1)
+        layout.addWidget(left_panel, 0, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(center_panel, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(right_panel, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         footer.setLayout(layout)
         return footer
 
@@ -545,10 +548,23 @@ class WebcamPage(QWidget):
         self._sync_video_device_combo()
         return wrapper
 
-    def _build_capture_button(self, label: str, background: str, color: str, large: bool) -> QPushButton:
+    def _build_capture_button(
+        self,
+        label: str,
+        background: str,
+        color: str,
+        large: bool,
+        icon: QIcon | None = None,
+        tooltip: str | None = None,
+    ) -> QPushButton:
         button = QPushButton(label)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setFixedSize(90 if large else 72, 90 if large else 72)
+        if icon is not None:
+            button.setIcon(icon)
+            button.setIconSize(QSize(30, 30) if large else QSize(28, 28))
+        if tooltip:
+            button.setToolTip(tooltip)
         button.setStyleSheet(self._capture_button_style(background, color, large))
         return button
 
@@ -567,7 +583,47 @@ class WebcamPage(QWidget):
             "QPushButton:hover {"
             "border-color: #0f172a;"
             "}"
+            "QPushButton:disabled {"
+            "background: #1e293b;"
+            "color: #64748b;"
+            "border-color: #020617;"
+            "}"
         )
+
+    def _build_camera_icon(self, color: str) -> QIcon:
+        icon_size = 32
+        device_pixel_ratio = 2.0
+        pixmap = QPixmap(int(icon_size * device_pixel_ratio), int(icon_size * device_pixel_ratio))
+        pixmap.fill(Qt.GlobalColor.transparent)
+        pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor(color), 2.4)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(4.0, 10.0, 24.0, 15.0), 3.5, 3.5)
+        painter.drawEllipse(QRectF(11.0, 13.0, 10.0, 10.0))
+        painter.drawRoundedRect(QRectF(9.0, 7.0, 7.0, 4.0), 1.5, 1.5)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _build_pause_icon(self, color: str) -> QIcon:
+        icon_size = 32
+        device_pixel_ratio = 2.0
+        pixmap = QPixmap(int(icon_size * device_pixel_ratio), int(icon_size * device_pixel_ratio))
+        pixmap.fill(Qt.GlobalColor.transparent)
+        pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(color))
+        painter.drawRoundedRect(QRectF(8.0, 6.0, 5.0, 20.0), 2.0, 2.0)
+        painter.drawRoundedRect(QRectF(19.0, 6.0, 5.0, 20.0), 2.0, 2.0)
+        painter.end()
+        return QIcon(pixmap)
 
     def _badge_style(self, background: str, color: str, bold: bool = False) -> str:
         weight = "700" if bold else "600"

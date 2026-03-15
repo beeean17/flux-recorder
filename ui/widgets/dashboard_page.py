@@ -69,9 +69,16 @@ class ActionCard(QFrame):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         icon_box = QFrame()
+        icon_box.setObjectName("actionCardIconBox")
         icon_box.setFixedSize(72, 72)
         icon_box.setStyleSheet(
-            f"background: {accent_color}22; border-radius: 22px; border: 1px solid {accent_color}33;"
+            f"""
+            QFrame#actionCardIconBox {{
+                background: {accent_color}22;
+                border-radius: 22px;
+                border: 1px solid {accent_color}33;
+            }}
+            """
         )
 
         icon_label = QLabel(title.split()[0][:1])
@@ -179,6 +186,7 @@ class DashboardPage(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
+        self.setObjectName("dashboard_page")
         self._activity_layout = QVBoxLayout()
         self._activity_empty_label = QLabel("No recent activity yet.")
         self._activity_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -190,18 +198,38 @@ class DashboardPage(QWidget):
         root_layout.addWidget(self._build_sidebar())
         root_layout.addWidget(self._build_content(), 1)
         self.setLayout(root_layout)
-        self.setStyleSheet("background: #050607;")
+        self.setStyleSheet(
+            """
+            QWidget#dashboard_page {
+                background: #050607;
+            }
+            """
+        )
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
+        sidebar.setObjectName("dashboardSidebar")
         sidebar.setFixedWidth(300)
         sidebar.setStyleSheet(
-            "background: #0d0f12; border-right: 1px solid rgba(255, 255, 255, 0.06);"
+            """
+            QFrame#dashboardSidebar {
+                background: #0d0f12;
+                border-right: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            """
         )
 
         logo_box = QFrame()
+        logo_box.setObjectName("dashboardLogoBox")
         logo_box.setFixedSize(40, 40)
-        logo_box.setStyleSheet("background: #315efb; border-radius: 12px;")
+        logo_box.setStyleSheet(
+            """
+            QFrame#dashboardLogoBox {
+                background: #315efb;
+                border-radius: 12px;
+            }
+            """
+        )
         logo_label = QLabel("F")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_label.setStyleSheet("color: white; font-size: 20px; font-weight: 800;")
@@ -338,8 +366,15 @@ class DashboardPage(QWidget):
         )
 
         activity_container = QFrame()
+        activity_container.setObjectName("dashboardActivityContainer")
         activity_container.setStyleSheet(
-            "background: #0d0f12; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 24px;"
+            """
+            QFrame#dashboardActivityContainer {
+                background: #0d0f12;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 24px;
+            }
+            """
         )
         self._activity_layout.setContentsMargins(0, 0, 0, 0)
         self._activity_layout.setSpacing(0)
