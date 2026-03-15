@@ -150,21 +150,21 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "overlay_area_instruction": "캡처할 영역을 드래그해 선택하세요. 마우스를 놓으면 확정되고, Esc로 취소할 수 있습니다.",
         "floating_resume": "REC",
         "floating_pause": "일시정지",
-        "floating_stop": "정지",
+        "floating_stop": "종료",
         "status_ready": "준비 완료",
         "no_capture": "아직 캡처가 없습니다",
         "record": "녹화",
         "snapshot": "스냅샷",
         "pause": "일시정지",
-        "stop": "정지",
+        "stop": "종료",
         "resume": "재개",
         "capture_backend_missing": "화면 캡처 백엔드를 사용할 수 없습니다. 누락된 의존성: {name}",
         "capture_backend_ready": "캡처 백엔드가 준비되었습니다.",
         "recording_resumed": "녹화를 다시 시작했습니다.",
         "preparing_capture": "캡처를 준비 중입니다. 녹화 시작 전 창이 숨겨집니다.",
-        "recording_paused": "녹화를 일시정지했습니다. 미니 컨트롤러에서 재개하거나 중지할 수 있습니다.",
+        "recording_paused": "녹화를 일시정지했습니다. 미니 컨트롤러에서 재개하거나 종료할 수 있습니다.",
         "saved_screen_recording": "{path}에 화면 녹화 파일을 저장했습니다",
-        "recording_stopped": "녹화를 중지했습니다.",
+        "recording_stopped": "녹화를 종료했습니다.",
         "capturing_snapshot": "스냅샷을 저장하는 중입니다. 잠시 창이 숨겨집니다.",
         "back_to_menu": "메뉴로 돌아가기 (Esc)",
         "capture_settings": "캡처 설정",
@@ -176,7 +176,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "screen_workflow": "화면 캡처 작업 흐름",
         "hero_title": "먼저 대상을 고른 뒤 녹화를 시작하세요.",
         "hero_subtitle": "창과 사용자 지정 영역 캡처는 전용 선택기를 사용하므로, 녹화 전에 정확한 대상을 지정할 수 있습니다.",
-        "helper": "녹화가 시작되면 앱은 스스로 숨기고, 재개·일시정지·정지를 위한 작은 캡처 제외 컨트롤러만 남깁니다.",
+        "helper": "녹화가 시작되면 앱은 스스로 숨기고, 재개·일시정지·종료를 위한 작은 캡처 제외 컨트롤러만 남깁니다.",
         "capture_setup": "캡처 준비",
         "capture_setup_hint": "오른쪽에서 캡처 모드를 고른 뒤, 녹화 전에 정확한 대상을 확정하세요.",
         "recent_capture": "최근 캡처",
@@ -198,7 +198,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "enabled": "켜짐",
         "disabled": "꺼짐",
         "defaults_restored": "기본값으로 복원했습니다.",
-        "stop_before_target_change": "캡처 대상을 바꾸기 전에 현재 녹화를 중지하세요.",
+        "stop_before_target_change": "캡처 대상을 바꾸기 전에 현재 녹화를 종료하세요.",
         "full_screen_mode_note": "전체 화면 모드는 데스크톱 전체를 캡처합니다. 추가 대상 선택이 필요하지 않습니다.",
         "window_windows_only": "현재 빌드에서는 창 선택 기능이 Windows에서만 지원됩니다.",
         "hide_and_choose_target": "녹화기를 숨긴 뒤 캡처 대상을 선택하세요.",
@@ -221,7 +221,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "saved_at_original_size": "{width} x {height} px (원본 캡처 크기로 저장)",
         "backend_unavailable": "캡처 백엔드를 사용할 수 없습니다.",
         "unable_capture_frame": "화면 프레임을 가져오지 못했습니다.",
-        "recording_to_with_controller": "{path}에 녹화 중입니다. 미니 컨트롤러에서 재개, 일시정지, 정지를 사용할 수 있습니다.",
+        "recording_to_with_controller": "{path}에 녹화 중입니다. 미니 컨트롤러에서 재개, 일시정지, 종료를 사용할 수 있습니다.",
         "unable_capture_snapshot": "스냅샷을 캡처하지 못했습니다.",
         "unable_save_snapshot": "{path}에 스냅샷을 저장하지 못했습니다",
         "saved_snapshot": "{path}에 스냅샷을 저장했습니다",
@@ -879,7 +879,8 @@ class RecordingCountdownOverlay(QWidget):
         painter.setBrush(QColor(11, 9, 19, 185))
         painter.drawEllipse(badge_rect)
 
-        font = QFont("Segoe UI", 54, QFont.Weight.Bold)
+        base_font = QApplication.font()
+        font = QFont(base_font.family(), 54, QFont.Weight.Bold)
         painter.setFont(font)
 
         shadow_rect = badge_rect.translated(0, 6)
@@ -1792,7 +1793,7 @@ class ScreenCapturePanel(QWidget):
         self.set_status(_screen_text(self._language, "defaults_restored"))
 
     def _build_recording_path(self) -> Path:
-        return self._save_directory / f"screen_recording_{self._timestamp_string()}.avi"
+        return self._save_directory / f"screen_recording_{self._timestamp_string()}.mp4"
 
     def _build_snapshot_path(self) -> Path:
         return self._save_directory / f"screen_snapshot_{self._timestamp_string()}.png"

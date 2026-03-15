@@ -23,10 +23,8 @@ class Recorder:
         normalized_path = Path(output_path).expanduser()
         normalized_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
-        writer = cv2.VideoWriter(str(normalized_path), fourcc, fps, size)
-        if not writer.isOpened():
-            writer.release()
+        writer = self._open_writer(normalized_path, fps, size)
+        if writer is None:
             raise RuntimeError(f"Unable to open video writer for {normalized_path}.")
 
         self.stop()
@@ -44,3 +42,27 @@ class Recorder:
             self._writer = None
         self._output_path = None
         return output_path
+
+    def _open_writer(self, output_path: Path, fps: float, size: tuple[int, int]) -> cv2.VideoWriter | None:
+        suffix = output_path.suffix.lower()
+        fourcc_candidates = self._fourcc_candidates(suffix)
+
+        for fourcc_code in fourcc_candidates:
+            writer = cv2.VideoWriter(
+                str(output_path),
+                cv2.VideoWriter_fourcc(*fourcc_code),
+                fps,
+                size,
+            )
+            if writer.isOpened():
+                return writer
+            writer.release()
+
+        return None
+
+    def _fourcc_candidates(self, suffix: str) -> tuple[str, ...]:
+        if suffix == ".mp4":
+            return ("mp4v", "avc1", "H264")
+        if suffix == ".avi":
+            return ("XVID", "MJPG")
+        return ("mp4v", "XVID", "MJPG")

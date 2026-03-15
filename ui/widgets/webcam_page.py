@@ -7,8 +7,9 @@ from time import perf_counter
 
 import numpy as np
 from PyQt6.QtCore import QPoint, QRectF, QSize, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QResizeEvent
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap, QResizeEvent
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFrame,
     QGridLayout,
@@ -102,12 +103,12 @@ WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
         "recording_paused": "녹화 일시정지: {path}",
         "recording_paused_simple": "녹화를 일시정지했습니다.",
         "recording_cancelled": "녹화를 취소했습니다.",
-        "recording_stopped": "녹화를 중지했습니다.",
+        "recording_stopped": "녹화를 종료했습니다.",
         "snapshot_unavailable": "사진을 저장할 수 없습니다. 카메라 미리보기를 기다려 주세요.",
         "saved_photo": "{path}에 사진을 저장했습니다",
         "saved_recording": "{path}에 녹화 파일을 저장했습니다",
         "live_dimensions": "{width} x {height} 실시간",
-        "stop": "정지",
+        "stop": "종료",
         "paused": "일시정지",
         "resume": "재개",
         "wait": "대기",
@@ -129,7 +130,7 @@ WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
         "mute": "없음 (음소거)",
         "no_camera_detected": "감지된 카메라가 없습니다",
         "camera_label": "카메라 {index}",
-        "stop_before_switch": "카메라를 바꾸기 전에 현재 녹화를 중지하세요.",
+        "stop_before_switch": "카메라를 바꾸기 전에 현재 녹화를 종료하세요.",
         "failed_read_frame": "카메라에서 프레임을 읽지 못했습니다.",
         "language_button": "English",
     },
@@ -179,6 +180,67 @@ class UIFLashOverlay(QWidget):
         painter.end()
 
 
+class WebcamRecordingCountdownOverlay(QWidget):
+    countdown_finished = pyqtSignal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._remaining = 3
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._advance_countdown)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.hide()
+
+    def start(self, seconds: int = 3) -> None:
+        self._remaining = max(1, seconds)
+        self.show()
+        self.raise_()
+        self.update()
+        self._timer.start(1000)
+
+    def stop(self) -> None:
+        self._timer.stop()
+        self.hide()
+
+    def _advance_countdown(self) -> None:
+        self._remaining -= 1
+        if self._remaining <= 0:
+            self.stop()
+            self.countdown_finished.emit()
+            return
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(2, 6, 23, 44))
+
+        badge_size = 136
+        center = self.rect().center()
+        badge_rect = QRectF(
+            center.x() - badge_size / 2,
+            center.y() - badge_size / 2,
+            badge_size,
+            badge_size,
+        )
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(15, 23, 42, 210))
+        painter.drawEllipse(badge_rect)
+
+        shadow_rect = badge_rect.translated(0, 5)
+        base_font = QApplication.font()
+        font = QFont(base_font.family(), 54, QFont.Weight.Bold)
+        painter.setFont(font)
+        painter.setPen(QColor(0, 0, 0, 130))
+        painter.drawText(shadow_rect, Qt.AlignmentFlag.AlignCenter, str(self._remaining))
+
+        painter.setPen(QColor("#f8fafc"))
+        painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, str(self._remaining))
+        painter.end()
+
+
 class WebcamPage(QWidget):
     back_requested = pyqtSignal()
     browse_save_path_requested = pyqtSignal()
@@ -204,9 +266,11 @@ class WebcamPage(QWidget):
         self._preview_timer: QTimer | None = None
         self._recorder = None
         self._pending_recording_path: Path | None = None
+        self._countdown_recording_path: Path | None = None
         self._frame_intervals: deque[float] = deque(maxlen=FRAME_INTERVAL_WINDOW)
         self._last_frame_timestamp: float | None = None
         self._video_device_combo: QComboBox | None = None
+        self._recording_countdown_overlay: WebcamRecordingCountdownOverlay | None = None
 
         self._preview_stats_badge = QLabel(_webcam_text(self._language, "live_preview"))
         self._preview_stats_badge.setStyleSheet(self._badge_style("#0f172a", "#94a3b8"))
@@ -342,6 +406,7 @@ class WebcamPage(QWidget):
                 self._handle_saved_recording(saved_path)
         self._recorder = None
 
+        self._cancel_recording_countdown()
         self._release_camera()
         self._cv2 = None
         self._pending_recording_path = None
@@ -369,9 +434,10 @@ class WebcamPage(QWidget):
         if self._recording_state != IDLE:
             return
 
-        self._pending_recording_path = self._build_recording_path()
+        self._countdown_recording_path = self._build_recording_path()
         self.set_recording_state(STARTING)
-        self.set_status(_webcam_text(self._language, "preparing_recording", name=self._pending_recording_path.name))
+        self.set_status(_webcam_text(self._language, "preparing_recording", name=self._countdown_recording_path.name))
+        self._begin_recording_countdown()
 
     def toggle_recording(self) -> None:
         if self._recording_state in (IDLE, PAUSED):
@@ -396,7 +462,8 @@ class WebcamPage(QWidget):
         if self._recording_state == IDLE or self._recorder is None:
             return
 
-        was_starting = self._pending_recording_path is not None and not self._recorder.is_recording
+        was_starting = self._recording_state == STARTING
+        self._cancel_recording_countdown()
         self._pending_recording_path = None
         saved_path = self._recorder.stop()
         if saved_path is not None:
@@ -496,6 +563,23 @@ class WebcamPage(QWidget):
         if self._ui_flash_overlay.isVisible():
             self._update_interface_flash_overlay()
 
+    def _begin_recording_countdown(self) -> None:
+        if self._recording_countdown_overlay is None:
+            self._finalize_recording_countdown()
+            return
+        self._recording_countdown_overlay.start(3)
+
+    def _cancel_recording_countdown(self) -> None:
+        if self._recording_countdown_overlay is not None:
+            self._recording_countdown_overlay.stop()
+        self._countdown_recording_path = None
+
+    def _finalize_recording_countdown(self) -> None:
+        if self._recording_state != STARTING or self._countdown_recording_path is None:
+            return
+        self._pending_recording_path = self._countdown_recording_path
+        self._countdown_recording_path = None
+
     def _build_main_area(self) -> QHBoxLayout:
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -533,8 +617,12 @@ class WebcamPage(QWidget):
         overlay_layout.addStretch(1)
         overlay.setLayout(overlay_layout)
 
+        self._recording_countdown_overlay = WebcamRecordingCountdownOverlay()
+        self._recording_countdown_overlay.countdown_finished.connect(self._finalize_recording_countdown)
+
         grid.addWidget(overlay, 0, 0)
         grid.addWidget(self._flash_overlay, 0, 0)
+        grid.addWidget(self._recording_countdown_overlay, 0, 0)
         stack.setLayout(grid)
 
         layout = QVBoxLayout()
@@ -1036,7 +1124,7 @@ class WebcamPage(QWidget):
         self.recording_saved.emit(str(saved_path))
 
     def _build_recording_path(self) -> Path:
-        return self._save_directory / f"recording_{self._timestamp_string()}.avi"
+        return self._save_directory / f"recording_{self._timestamp_string()}.mp4"
 
     def _build_snapshot_path(self) -> Path:
         return self._save_directory / f"snapshot_{self._timestamp_string()}.png"
