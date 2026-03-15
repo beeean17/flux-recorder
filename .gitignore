@@ -11,7 +11,12 @@ ENV/
 
 # Packaging and build outputs
 dist/
-*.spec
+build/*
+!build/build_windows.bat
+!build/build_mac.sh
+*.pkg
+*.pyz
+*.egg-info/
 
 # Test and tooling caches
 .pytest_cache/
@@ -27,3 +32,4 @@ dist/
 Thumbs.db
 
 *.pdf
+!hw1_video_recorder.pdf

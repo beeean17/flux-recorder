@@ -24,6 +24,40 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Package With PyInstaller
+
+Build on each target OS separately.
+
+- Windows build on Windows
+- macOS build on macOS
+
+Install PyInstaller first:
+
+```bash
+pip install pyinstaller
+```
+
+Windows:
+
+```bash
+build\build_windows.bat
+```
+
+macOS:
+
+```bash
+bash build/build_mac.sh
+```
+
+Output is created in `dist/flux-recorder/`.
+
+Notes:
+
+- The project uses `flux-recorder.spec` for packaging.
+- `assets/` is bundled automatically.
+- Windows app icon uses `assets/app.ico`.
+- macOS app icon uses `assets/app.icns` if you add one. If no `.icns` file is present, the app still builds without a custom macOS icon.
+
 ## Core Stack
 
 - `PyQt6` for the desktop UI
