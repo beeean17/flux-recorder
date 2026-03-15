@@ -9,7 +9,7 @@ class PageHeader(QWidget):
 
     def __init__(self, title: str) -> None:
         super().__init__()
-        back_button = QPushButton("Back to Menu")
+        back_button = QPushButton("Back to Menu (Esc)")
         back_button.clicked.connect(self.back_requested.emit)
 
         title_label = QLabel(title)

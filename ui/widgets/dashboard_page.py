@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -15,404 +17,506 @@ from PyQt6.QtWidgets import (
 )
 
 
+BASE = "#05070b"
+HEADER_BG = "#0a0f18"
+PANEL = "#0f1724"
+PANEL_ALT = "#131d2c"
+FOOTER_BG = "#09101a"
+TEXT_PRIMARY = "#f8fafc"
+TEXT_SECONDARY = "#94a3b8"
+BORDER = "rgba(148, 163, 184, 0.18)"
+
+
 @dataclass(slots=True)
 class ActivityItem:
     title: str
     timestamp: str
     color: str
 
-
-class SidebarButton(QPushButton):
-    def __init__(self, label: str, active: bool = False) -> None:
-        super().__init__(label)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setProperty("active", active)
-        self._apply_style()
-
-    def _apply_style(self) -> None:
-        self.setStyleSheet(
-            """
-            QPushButton {
-                text-align: left;
-                padding: 14px 18px;
-                border-radius: 14px;
-                color: #98a2b3;
-                background: transparent;
-                font-size: 15px;
-                font-weight: 600;
-                border: none;
-            }
-            QPushButton:hover {
-                color: white;
-                background: rgba(255, 255, 255, 0.06);
-            }
-            QPushButton[active="true"] {
-                color: white;
-                background: #2a2a2f;
-            }
-            """
-        )
-
-
-class ActionCard(QFrame):
+class FeatureCard(QFrame):
     clicked = pyqtSignal()
 
     def __init__(
         self,
         accent_color: str,
+        button_hover_color: str,
+        surface_color: str,
+        border_color: str,
+        icon_kind: str,
         title: str,
         description: str,
         action_text: str,
     ) -> None:
         super().__init__()
-        self.setObjectName("actionCard")
+        self.setObjectName("featureCard")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-        icon_box = QFrame()
-        icon_box.setObjectName("actionCardIconBox")
-        icon_box.setFixedSize(72, 72)
-        icon_box.setStyleSheet(
+        self.setMinimumSize(290, 540)
+        self.setStyleSheet(
             f"""
-            QFrame#actionCardIconBox {{
-                background: {accent_color}22;
-                border-radius: 22px;
-                border: 1px solid {accent_color}33;
+            QFrame#featureCard {{
+                background: {surface_color};
+                border: 1px solid {border_color};
+                border-radius: 26px;
             }}
             """
         )
 
-        icon_label = QLabel(title.split()[0][:1])
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet(f"color: {accent_color}; font-size: 28px; font-weight: 800;")
-        icon_layout = QVBoxLayout()
-        icon_layout.setContentsMargins(0, 0, 0, 0)
-        icon_layout.addWidget(icon_label, 1)
-        icon_box.setLayout(icon_layout)
+        badge_frame = QFrame()
+        badge_frame.setObjectName("featureCardBadge")
+        badge_frame.setFixedSize(86, 86)
+        badge_frame.setStyleSheet(
+            f"""
+            QFrame#featureCardBadge {{
+                background: {accent_color}22;
+                border: 1px solid {accent_color}44;
+                border-radius: 43px;
+            }}
+            """
+        )
 
-        title_label = QLabel(title)
-        title_label.setWordWrap(True)
-        title_label.setStyleSheet("color: white; font-size: 18px; font-weight: 700;")
+        badge_label = QLabel()
+        badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge_label.setPixmap(self._build_icon(icon_kind, accent_color))
 
-        description_label = QLabel(description)
-        description_label.setWordWrap(True)
-        description_label.setStyleSheet("color: #98a2b3; font-size: 14px; line-height: 1.6;")
+        badge_layout = QVBoxLayout()
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        badge_layout.addWidget(badge_label, 1)
+        badge_frame.setLayout(badge_layout)
 
-        action_button = QPushButton(action_text)
-        action_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        action_button.clicked.connect(self.clicked.emit)
-        action_button.setStyleSheet(
+        self._title_label = QLabel(title)
+        self._title_label.setWordWrap(True)
+        self._title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 24px; font-weight: 800;")
+
+        self._description_label = QLabel(description)
+        self._description_label.setWordWrap(True)
+        self._description_label.setTextFormat(Qt.TextFormat.RichText)
+        self._description_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
+
+        self._action_button = QPushButton(action_text)
+        self._action_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._action_button.clicked.connect(self.clicked.emit)
+        self._action_button.setMinimumHeight(54)
+        self._action_button.setStyleSheet(
             f"""
             QPushButton {{
-                min-height: 48px;
-                border-radius: 14px;
                 background: {accent_color};
                 color: white;
-                font-size: 16px;
-                font-weight: 700;
                 border: none;
+                border-radius: 14px;
+                font-size: 15px;
+                font-weight: 700;
+                padding: 0 18px;
             }}
             QPushButton:hover {{
+                background: {button_hover_color};
+                border: 1px solid rgba(255, 255, 255, 0.24);
+            }}
+            QPushButton:pressed {{
                 background: {accent_color};
-                border: 1px solid rgba(255, 255, 255, 0.16);
             }}
             """
         )
+        self.set_content(title, description, action_text)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(18)
-        layout.addWidget(icon_box, 0)
-        layout.addWidget(title_label, 0)
-        layout.addWidget(description_label, 1)
+        layout.setSpacing(20)
+        layout.addWidget(badge_frame, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self._title_label, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self._description_label, 1)
         layout.addStretch(1)
-        layout.addWidget(action_button, 0)
+        layout.addWidget(self._action_button)
         self.setLayout(layout)
 
-        self.setStyleSheet(
-            """
-            QFrame#actionCard {
-                background: #111214;
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 28px;
-            }
-            """
-        )
+    def set_content(self, title: str, description: str, action_text: str) -> None:
+        self._title_label.setText(title)
+        self._description_label.setText(f"<div style='line-height: 1.55;'>{description}</div>")
+        self._action_button.setText(action_text)
 
+    def _build_icon(self, icon_kind: str, color: str) -> QPixmap:
+        icon_size = 42
+        device_pixel_ratio = 2.0
+        pixmap = QPixmap(int(icon_size * device_pixel_ratio), int(icon_size * device_pixel_ratio))
+        pixmap.fill(Qt.GlobalColor.transparent)
+        pixmap.setDevicePixelRatio(device_pixel_ratio)
 
-class ActivityRow(QFrame):
-    def __init__(self, item: ActivityItem) -> None:
-        super().__init__()
-        self.setObjectName("activityRow")
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor(color), 2.6)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
 
-        dot = QFrame()
-        dot.setFixedSize(10, 10)
-        dot.setStyleSheet(f"background: {item.color}; border-radius: 5px;")
+        if icon_kind == "camera":
+            painter.drawRoundedRect(8, 13, 26, 17, 4, 4)
+            painter.drawEllipse(16, 17, 10, 10)
+            painter.drawRoundedRect(13, 9, 8, 5, 2, 2)
+        elif icon_kind == "screen":
+            painter.drawRoundedRect(6, 9, 30, 19, 4, 4)
+            painter.drawLine(17, 31, 25, 31)
+            painter.drawLine(21, 28, 21, 31)
+        else:
+            file_path = QPainterPath()
+            file_path.moveTo(12, 8)
+            file_path.lineTo(25, 8)
+            file_path.lineTo(31, 14)
+            file_path.lineTo(31, 33)
+            file_path.lineTo(12, 33)
+            file_path.closeSubpath()
+            painter.drawPath(file_path)
+            painter.drawLine(25, 8, 25, 14)
+            painter.drawLine(25, 14, 31, 14)
+            painter.drawLine(16, 23, 26, 23)
+            painter.drawLine(23, 20, 26, 23)
+            painter.drawLine(23, 26, 26, 23)
 
-        title_label = QLabel(item.title)
-        title_label.setStyleSheet("color: #f3f4f6; font-size: 15px;")
-
-        time_label = QLabel(item.timestamp)
-        time_label.setStyleSheet("color: #7c8593; font-size: 13px;")
-
-        left_layout = QHBoxLayout()
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(14)
-        left_layout.addWidget(dot)
-        left_layout.addWidget(title_label)
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.addLayout(left_layout)
-        layout.addStretch(1)
-        layout.addWidget(time_label)
-        self.setLayout(layout)
-
-        self.setStyleSheet(
-            """
-            QFrame#activityRow {
-                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            }
-            """
-        )
-
+        painter.end()
+        return pixmap
 
 class DashboardPage(QWidget):
     webcam_requested = pyqtSignal()
     screen_requested = pyqtSignal()
     convert_requested = pyqtSignal()
-    history_requested = pyqtSignal()
-    notifications_requested = pyqtSignal()
-    settings_requested = pyqtSignal()
+    language_changed = pyqtSignal(str)
 
-    def __init__(self) -> None:
+    def __init__(self, language: str = "en") -> None:
         super().__init__()
         self.setObjectName("dashboard_page")
-        self._activity_layout = QVBoxLayout()
-        self._activity_empty_label = QLabel("No recent activity yet.")
-        self._activity_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._activity_empty_label.setStyleSheet("color: #7c8593; font-size: 14px;")
+        self._language = language if language in ("en", "ko") else "en"
 
-        root_layout = QHBoxLayout()
+        root_layout = QVBoxLayout()
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
-        root_layout.addWidget(self._build_sidebar())
+        root_layout.addWidget(self._build_header())
         root_layout.addWidget(self._build_content(), 1)
+        root_layout.addWidget(self._build_footer())
         self.setLayout(root_layout)
         self.setStyleSheet(
+            f"""
+            QWidget#dashboard_page {{
+                background: {BASE};
+            }}
             """
-            QWidget#dashboard_page {
-                background: #050607;
-            }
+        )
+        self._apply_language()
+
+    def _build_header(self) -> QWidget:
+        header = QFrame()
+        header.setObjectName("dashboardHeader")
+        header.setFixedHeight(84)
+        header.setStyleSheet(
+            f"""
+            QFrame#dashboardHeader {{
+                background: {HEADER_BG};
+                border-bottom: 1px solid {BORDER};
+            }}
+            QFrame#dashboardBrandMark {{
+                background: #0a47c2;
+                border-radius: 10px;
+            }}
             """
         )
 
-    def _build_sidebar(self) -> QWidget:
-        sidebar = QFrame()
-        sidebar.setObjectName("dashboardSidebar")
-        sidebar.setFixedWidth(300)
-        sidebar.setStyleSheet(
-            """
-            QFrame#dashboardSidebar {
-                background: #0d0f12;
-                border-right: 1px solid rgba(255, 255, 255, 0.06);
-            }
-            """
-        )
+        brand_mark = QFrame()
+        brand_mark.setObjectName("dashboardBrandMark")
+        brand_mark.setFixedSize(36, 36)
+        brand_letter = QLabel("F")
+        brand_letter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        brand_letter.setStyleSheet("color: white; font-size: 18px; font-weight: 800;")
+        brand_layout = QVBoxLayout()
+        brand_layout.setContentsMargins(0, 0, 0, 0)
+        brand_layout.addWidget(brand_letter, 1)
+        brand_mark.setLayout(brand_layout)
 
-        logo_box = QFrame()
-        logo_box.setObjectName("dashboardLogoBox")
-        logo_box.setFixedSize(40, 40)
-        logo_box.setStyleSheet(
-            """
-            QFrame#dashboardLogoBox {
-                background: #315efb;
-                border-radius: 12px;
-            }
-            """
-        )
-        logo_label = QLabel("F")
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_label.setStyleSheet("color: white; font-size: 20px; font-weight: 800;")
-        logo_layout = QVBoxLayout()
-        logo_layout.setContentsMargins(0, 0, 0, 0)
-        logo_layout.addWidget(logo_label, 1)
-        logo_box.setLayout(logo_layout)
+        brand_name = QLabel("flux-recorder")
+        brand_name.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 20px; font-weight: 800;")
 
-        brand_label = QLabel("flux-recorder")
-        brand_label.setStyleSheet("color: white; font-size: 24px; font-weight: 700;")
+        self._brand_hint = QLabel()
+        self._brand_hint.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         brand_row = QHBoxLayout()
         brand_row.setContentsMargins(0, 0, 0, 0)
         brand_row.setSpacing(12)
-        brand_row.addWidget(logo_box)
-        brand_row.addWidget(brand_label)
-        brand_row.addStretch(1)
+        brand_row.addWidget(brand_mark)
+        brand_row.addWidget(brand_name)
+        brand_row.addWidget(self._brand_hint)
 
-        dashboard_button = SidebarButton("Dashboard", active=True)
-        history_button = SidebarButton("History")
-        notifications_button = SidebarButton("Notifications")
-        settings_button = SidebarButton("Settings")
+        language_switch = QFrame()
+        language_switch.setObjectName("languageSwitch")
+        language_switch.setStyleSheet(
+            """
+            QFrame#languageSwitch {
+                background: #0f1724;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                border-radius: 14px;
+            }
+            """
+        )
 
-        history_button.clicked.connect(self.history_requested.emit)
-        notifications_button.clicked.connect(self.notifications_requested.emit)
-        settings_button.clicked.connect(self.settings_requested.emit)
+        self._ko_button = QPushButton("한국어")
+        self._en_button = QPushButton("English")
+        for button, language in ((self._ko_button, "ko"), (self._en_button, "en")):
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setFixedHeight(34)
+            button.clicked.connect(lambda _checked, lang=language: self._select_language(lang))
+            button.setStyleSheet(
+                """
+                QPushButton {
+                    background: transparent;
+                    color: #94a3b8;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0 14px;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                QPushButton:hover {
+                    color: #e2e8f0;
+                }
+                QPushButton:checked {
+                    background: #1d4ed8;
+                    color: white;
+                }
+                """
+            )
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(20, 24, 20, 24)
-        layout.setSpacing(18)
+        language_layout = QHBoxLayout()
+        language_layout.setContentsMargins(6, 6, 6, 6)
+        language_layout.setSpacing(6)
+        language_layout.addWidget(self._ko_button)
+        language_layout.addWidget(self._en_button)
+        language_switch.setLayout(language_layout)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(26, 16, 26, 16)
+        layout.setSpacing(24)
         layout.addLayout(brand_row)
-        layout.addSpacing(24)
-        layout.addWidget(dashboard_button)
-        layout.addWidget(history_button)
-        layout.addWidget(notifications_button)
         layout.addStretch(1)
-        layout.addWidget(settings_button)
-        sidebar.setLayout(layout)
-        return sidebar
+        layout.addWidget(language_switch, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        header.setLayout(layout)
+        return header
 
     def _build_content(self) -> QWidget:
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         scroll_area.setStyleSheet(
-            """
-            QScrollArea {
-                background: #050607;
+            f"""
+            QScrollArea {{
+                background: {BASE};
                 border: none;
-            }
-            QScrollBar:vertical {
-                background: #0d0f12;
+            }}
+            QScrollBar:vertical {{
+                background: {HEADER_BG};
                 width: 10px;
-                margin: 6px 0 6px 0;
-            }
-            QScrollBar::handle:vertical {
-                background: #20242b;
+                margin: 8px 0 8px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #1f2a3a;
                 border-radius: 5px;
                 min-height: 40px;
-            }
+            }}
             """
         )
 
         container = QWidget()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(40, 34, 40, 34)
-        layout.setSpacing(24)
+        container_layout = QVBoxLayout()
+        container_layout.setContentsMargins(34, 28, 34, 28)
+        container_layout.setSpacing(0)
 
-        header_title = QLabel("Welcome back")
-        header_title.setStyleSheet("color: white; font-size: 44px; font-weight: 800;")
+        shell = QWidget()
+        shell.setMaximumWidth(1360)
+        shell_layout = QVBoxLayout()
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(22)
 
-        header_subtitle = QLabel("What would you like to do today?")
-        header_subtitle.setStyleSheet("color: #8b94a3; font-size: 16px;")
+        self._hero_title = QLabel()
+        self._hero_title.setWordWrap(True)
+        self._hero_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 42px; font-weight: 800;")
 
-        version_badge = QLabel("v1.0.0")
-        version_badge.setStyleSheet(
-            """
-            color: #8b94a3;
-            font-size: 13px;
-            padding: 8px 16px;
-            background: #0d0f12;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 18px;
-            """
+        self._hero_subtitle = QLabel()
+        self._hero_subtitle.setWordWrap(True)
+        self._hero_subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 16px;")
+
+        cards_layout = QGridLayout()
+        cards_layout.setContentsMargins(0, 0, 0, 0)
+        cards_layout.setHorizontalSpacing(24)
+        cards_layout.setVerticalSpacing(24)
+        cards_layout.setColumnStretch(0, 1)
+        cards_layout.setColumnStretch(1, 1)
+        cards_layout.setColumnStretch(2, 1)
+        cards_layout.setRowStretch(0, 1)
+
+        self._webcam_card = FeatureCard(
+            accent_color="#2563eb",
+            button_hover_color="#3b82f6",
+            surface_color="#0e1726",
+            border_color="#1d3557",
+            icon_kind="camera",
+            title="",
+            description="",
+            action_text="",
+        )
+        self._screen_card = FeatureCard(
+            accent_color="#7c3aed",
+            button_hover_color="#8b5cf6",
+            surface_color="#231235",
+            border_color="#4c1d95",
+            icon_kind="screen",
+            title="",
+            description="",
+            action_text="",
+        )
+        self._convert_card = FeatureCard(
+            accent_color="#10b981",
+            button_hover_color="#34d399",
+            surface_color="#0d201b",
+            border_color="#14532d",
+            icon_kind="convert",
+            title="",
+            description="",
+            action_text="",
         )
 
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.addWidget(header_title)
-        header_row.addStretch(1)
-        header_row.addWidget(version_badge)
+        self._webcam_card.clicked.connect(self.webcam_requested.emit)
+        self._screen_card.clicked.connect(self.screen_requested.emit)
+        self._convert_card.clicked.connect(self.convert_requested.emit)
 
-        title_block = QVBoxLayout()
-        title_block.setSpacing(8)
-        title_block.addLayout(header_row)
-        title_block.addWidget(header_subtitle)
+        cards_layout.addWidget(self._webcam_card, 0, 0)
+        cards_layout.addWidget(self._screen_card, 0, 1)
+        cards_layout.addWidget(self._convert_card, 0, 2)
 
-        cards_layout = QHBoxLayout()
-        cards_layout.setSpacing(24)
+        shell_layout.addWidget(self._hero_title)
+        shell_layout.addWidget(self._hero_subtitle)
+        shell_layout.addSpacing(8)
+        shell_layout.addLayout(cards_layout, 1)
+        shell.setLayout(shell_layout)
 
-        webcam_card = ActionCard(
-            "#2f6bff",
-            "Webcam Record & Photo",
-            "Capture crystal-clear photos or record high-definition video directly from your connected camera devices.",
-            "Open Camera",
-        )
-        screen_card = ActionCard(
-            "#8b5cf6",
-            "Screen Capture & Record",
-            "Record your desktop or a selected area. The page is ready now and the capture engine can be wired next.",
-            "Start Capture",
-        )
-        convert_card = ActionCard(
-            "#10b981",
-            "File Converter",
-            "Convert images and videos into the target format you need from a dedicated conversion workflow.",
-            "Convert Files",
-        )
+        shell_row = QHBoxLayout()
+        shell_row.setContentsMargins(0, 0, 0, 0)
+        shell_row.addStretch(1)
+        shell_row.addWidget(shell, 1)
+        shell_row.addStretch(1)
 
-        webcam_card.clicked.connect(self.webcam_requested.emit)
-        screen_card.clicked.connect(self.screen_requested.emit)
-        convert_card.clicked.connect(self.convert_requested.emit)
-
-        cards_layout.addWidget(webcam_card, 1)
-        cards_layout.addWidget(screen_card, 1)
-        cards_layout.addWidget(convert_card, 1)
-
-        cards_widget = QWidget()
-        cards_widget.setLayout(cards_layout)
-
-        activity_title = QLabel("RECENT ACTIVITY")
-        activity_title.setStyleSheet(
-            "color: #71798a; font-size: 14px; font-weight: 800; letter-spacing: 2px;"
-        )
-
-        activity_container = QFrame()
-        activity_container.setObjectName("dashboardActivityContainer")
-        activity_container.setStyleSheet(
-            """
-            QFrame#dashboardActivityContainer {
-                background: #0d0f12;
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 24px;
-            }
-            """
-        )
-        self._activity_layout.setContentsMargins(0, 0, 0, 0)
-        self._activity_layout.setSpacing(0)
-
-        activity_layout = QVBoxLayout()
-        activity_layout.setContentsMargins(0, 22, 0, 22)
-        activity_layout.setSpacing(0)
-        activity_layout.addWidget(self._activity_empty_label)
-        activity_layout.addLayout(self._activity_layout)
-        activity_container.setLayout(activity_layout)
-
-        layout.addLayout(title_block)
-        layout.addWidget(cards_widget)
-        layout.addSpacing(10)
-        layout.addWidget(activity_title)
-        layout.addWidget(activity_container)
-        layout.addStretch(1)
-        container.setLayout(layout)
+        container_layout.addLayout(shell_row)
+        container_layout.addStretch(1)
+        container.setLayout(container_layout)
         scroll_area.setWidget(container)
         return scroll_area
 
+    def _build_footer(self) -> QWidget:
+        footer = QFrame()
+        footer.setObjectName("dashboardFooter")
+        footer.setFixedHeight(66)
+        footer.setStyleSheet(
+            f"""
+            QFrame#dashboardFooter {{
+                background: {FOOTER_BG};
+                border-top: 1px solid {BORDER};
+            }}
+            """
+        )
+
+        self._version_label = QLabel()
+        self._version_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+
+        left_layout = QHBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        left_layout.addWidget(self._version_label)
+
+        self._exit_hint = QLabel()
+        self._exit_hint.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+
+        right_layout = QHBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(12)
+        right_layout.addWidget(self._exit_hint)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(24, 0, 24, 0)
+        layout.setSpacing(16)
+        layout.addLayout(left_layout)
+        layout.addStretch(1)
+        layout.addLayout(right_layout)
+        footer.setLayout(layout)
+        return footer
+
+    def set_language(self, language: str) -> None:
+        normalized = language if language in ("en", "ko") else "en"
+        if normalized == self._language:
+            return
+        self._language = normalized
+        self._apply_language()
+
+    def _select_language(self, language: str) -> None:
+        if language == self._language:
+            self._apply_language()
+            return
+        self._language = language
+        self._apply_language()
+        self.language_changed.emit(self._language)
+
+    def _apply_language(self) -> None:
+        texts = self._translations()[self._language]
+        self._brand_hint.setText(texts["brand_hint"])
+        self._ko_button.setChecked(self._language == "ko")
+        self._en_button.setChecked(self._language == "en")
+        self._hero_title.setText(texts["hero_title"])
+        self._hero_subtitle.setText(texts["hero_subtitle"])
+        self._webcam_card.set_content(texts["webcam_title"], texts["webcam_description"], texts["webcam_action"])
+        self._screen_card.set_content(texts["screen_title"], texts["screen_description"], texts["screen_action"])
+        self._convert_card.set_content(texts["convert_title"], texts["convert_description"], texts["convert_action"])
+        self._version_label.setText(texts["version"])
+        self._exit_hint.setText(texts["exit_hint"])
+
+    def _translations(self) -> dict[str, dict[str, str]]:
+        return {
+            "en": {
+                "brand_hint": "OpenCV-powered camera, screen, and conversion tools",
+                "language_button": "한국어",
+                "hero_title": "Launch the recorder workspace you need.",
+                "hero_subtitle": (
+                    "Open the camera recorder, start a screen capture session, or convert media files from one focused dashboard."
+                ),
+                "webcam_title": "Webcam Recorder",
+                "webcam_description": (
+                    "Preview your connected camera, capture still images, and record OpenCV-powered video clips from one workspace."
+                ),
+                "webcam_action": "Open Camera",
+                "screen_title": "Screen Tools",
+                "screen_description": (
+                    "Capture the full screen, a single window, or a custom region with a dedicated setup flow before recording."
+                ),
+                "screen_action": "Start Capture",
+                "convert_title": "File Converter",
+                "convert_description": (
+                    "Convert videos and images with format controls, image sizing options, and progress tracking in one place."
+                ),
+                "convert_action": "Convert Files",
+                "version": "Version 1.0.0",
+                "exit_hint": "Press ESC to Exit",
+            },
+            "ko": {
+                "brand_hint": "OpenCV 기반 카메라, 화면 캡처, 파일 변환 도구",
+                "language_button": "English",
+                "hero_title": "필요한 녹화 작업 공간을 바로 실행하세요.",
+                "hero_subtitle": "하나의 대시보드에서 카메라 녹화, 화면 캡처, 파일 변환 작업을 바로 시작할 수 있습니다.",
+                "webcam_title": "웹캠 레코더",
+                "webcam_description": "연결된 카메라를 미리 보고, 사진을 저장하고, OpenCV 기반 영상 녹화를 한 곳에서 진행합니다.",
+                "webcam_action": "카메라 열기",
+                "screen_title": "화면 캡처 도구",
+                "screen_description": "전체 화면, 특정 창, 또는 원하는 영역을 선택한 뒤 녹화를 시작할 수 있습니다.",
+                "screen_action": "캡처 시작",
+                "convert_title": "파일 변환기",
+                "convert_description": "비디오와 이미지를 원하는 형식과 크기로 변환하고 진행 상태도 함께 확인할 수 있습니다.",
+                "convert_action": "파일 변환",
+                "version": "버전 1.0.0",
+                "exit_hint": "ESC를 눌러 종료",
+            },
+        }
+
     def set_recent_activity(self, activities: list[ActivityItem]) -> None:
-        while self._activity_layout.count():
-            item = self._activity_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-
-        self._activity_empty_label.setVisible(not activities)
-
-        for index, activity in enumerate(activities):
-            row = ActivityRow(activity)
-            if index == len(activities) - 1:
-                row.setStyleSheet(
-                    """
-                    QFrame#activityRow {
-                        border-bottom: none;
-                    }
-                    """
-                )
-            self._activity_layout.addWidget(row)
+        del activities

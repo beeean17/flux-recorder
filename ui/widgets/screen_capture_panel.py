@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from platform import system
@@ -8,7 +9,7 @@ from time import perf_counter
 
 import numpy as np
 from PyQt6.QtCore import QPoint, QRect, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QGuiApplication, QImage, QMouseEvent, QPainter, QPen, QRegion
+from PyQt6.QtGui import QColor, QFont, QGuiApplication, QImage, QMouseEvent, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -36,11 +37,15 @@ TEXT_PRIMARY = "#f5f3ff"
 TEXT_SECONDARY = "#a79bbb"
 BORDER = "#34294b"
 DEFAULT_CAPTURE_FPS = 30
+FRAME_INTERVAL_WINDOW = 120
+MIN_CAPTURE_FPS = 5.0
+MAX_CAPTURE_FPS = 120.0
 MIN_SELECTION_SIZE = 24
 HOST_HIDE_DELAY_MS = 180
 WDA_EXCLUDEFROMCAPTURE = 0x00000011
 GWL_EXSTYLE = -20
 WS_EX_LAYERED = 0x00080000
+WS_EX_TOPMOST = 0x00000008
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_NOACTIVATE = 0x08000000
 SWP_NOMOVE = 0x0002
@@ -48,7 +53,191 @@ SWP_NOSIZE = 0x0001
 SWP_NOZORDER = 0x0004
 SWP_NOACTIVATE = 0x0010
 SWP_FRAMECHANGED = 0x0020
+SWP_SHOWWINDOW = 0x0040
 HWND_TOPMOST = -1
+HWND_NOTOPMOST = -2
+GA_ROOT = 2
+SW_SHOW = 5
+SW_RESTORE = 9
+
+SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "custom_area": "Custom area",
+        "overlay_window_instruction": "Click the window you want to capture. Press Esc to cancel.",
+        "overlay_area_instruction": "Drag to select a capture area. Release to confirm, or press Esc to cancel.",
+        "floating_resume": "REC",
+        "floating_pause": "PAUSE",
+        "floating_stop": "STOP",
+        "status_ready": "Ready",
+        "no_capture": "No capture yet",
+        "record": "Record",
+        "snapshot": "Snapshot",
+        "pause": "Pause",
+        "stop": "Stop",
+        "resume": "Resume",
+        "capture_backend_missing": "Screen capture backend is unavailable. Missing dependency: {name}",
+        "capture_backend_ready": "Capture backend ready.",
+        "recording_resumed": "Recording resumed.",
+        "preparing_capture": "Preparing capture. Recorder will hide before recording starts.",
+        "recording_paused": "Recording paused. Use the mini controller to resume or stop.",
+        "saved_screen_recording": "Saved screen recording to {path}",
+        "recording_stopped": "Recording stopped.",
+        "capturing_snapshot": "Capturing snapshot. Recorder will hide for a moment.",
+        "back_to_menu": "Back to Menu (Esc)",
+        "capture_settings": "Capture Settings",
+        "capture_settings_subtitle": "Adjust recording quality, audio options, and the output location.",
+        "video_settings": "Video Settings",
+        "audio_source": "Audio Source",
+        "output": "Output",
+        "restore_defaults": "Restore Defaults",
+        "screen_workflow": "Screen capture workflow",
+        "hero_title": "Select the target first, then let the recorder step out of the way.",
+        "hero_subtitle": "Window and custom-area capture now use a dedicated picker so you can lock onto the exact target before recording.",
+        "helper": "When recording starts, the app hides itself and leaves behind only a tiny capture-excluded controller for resume, pause, and stop.",
+        "capture_setup": "Capture Setup",
+        "capture_setup_hint": "Choose the capture mode on the right, then confirm the exact target before you record.",
+        "recent_capture": "Recent Capture",
+        "full_screen": "Full Screen",
+        "window": "Window",
+        "custom": "Custom",
+        "capture_target": "Capture Target",
+        "output_size": "Output Size",
+        "frame_rate": "Frame Rate",
+        "system_audio": "System Audio",
+        "external_mic": "External Mic",
+        "save_path": "Save Path",
+        "edit": "Edit",
+        "capture_target_unavailable": "Capture target is unavailable. Recording stopped.",
+        "mode_selected_full": "{mode} selected. The recorder hides itself when capture starts.",
+        "mode_selected_other": "{mode} selected. Choose a target before capture.",
+        "frame_rate_set": "Frame rate set to {fps} FPS.",
+        "audio_toggle": "{name} {state}. Audio recording is not wired in the OpenCV path yet.",
+        "enabled": "enabled",
+        "disabled": "disabled",
+        "defaults_restored": "Defaults restored.",
+        "stop_before_target_change": "Stop the current recording before changing the capture target.",
+        "full_screen_mode_note": "Full screen mode captures the entire desktop. No extra target selection is needed.",
+        "window_windows_only": "Window picking is currently supported on Windows in this build.",
+        "hide_and_choose_target": "Hide recorder and choose a capture target.",
+        "window_selected": "Window selected: {title}",
+        "area_selected_size": "Area selected: {width} x {height}",
+        "area_selected": "Area selected.",
+        "target_selection_cancelled": "Capture target selection cancelled.",
+        "entire_desktop": "Entire desktop",
+        "desktop_hint": "Use this when you want the whole workspace. The recorder hides itself when capture starts.",
+        "desktop_ready": "Desktop Ready",
+        "no_window_selected": "No window selected",
+        "window_hint": "Click Choose Window, then click the app or window you want to capture.",
+        "choose_window": "Choose Window",
+        "window_notice": "Window recording does not support resizing the selected window while recording.",
+        "area_summary": "{width} x {height} area",
+        "no_area_selected": "No area selected",
+        "area_hint": "Click Choose Area, then drag across the region you want to capture.",
+        "choose_area": "Choose Area",
+        "matches_target_size": "Matches the selected target size automatically.",
+        "saved_at_original_size": "{width} x {height} px (saved at original capture size)",
+        "backend_unavailable": "Capture backend is unavailable.",
+        "unable_capture_frame": "Unable to capture a screen frame.",
+        "recording_to_with_controller": "Recording to {path}. Use the mini controller to resume, pause, or stop.",
+        "unable_capture_snapshot": "Unable to capture a snapshot.",
+        "unable_save_snapshot": "Unable to save snapshot to {path}",
+        "saved_snapshot": "Saved snapshot to {path}",
+        "language_button": "한국어",
+    },
+    "ko": {
+        "custom_area": "사용자 지정 영역",
+        "overlay_window_instruction": "캡처할 창을 클릭하세요. 취소하려면 Esc를 누르세요.",
+        "overlay_area_instruction": "캡처할 영역을 드래그해 선택하세요. 마우스를 놓으면 확정되고, Esc로 취소할 수 있습니다.",
+        "floating_resume": "REC",
+        "floating_pause": "일시정지",
+        "floating_stop": "정지",
+        "status_ready": "준비 완료",
+        "no_capture": "아직 캡처가 없습니다",
+        "record": "녹화",
+        "snapshot": "스냅샷",
+        "pause": "일시정지",
+        "stop": "정지",
+        "resume": "재개",
+        "capture_backend_missing": "화면 캡처 백엔드를 사용할 수 없습니다. 누락된 의존성: {name}",
+        "capture_backend_ready": "캡처 백엔드가 준비되었습니다.",
+        "recording_resumed": "녹화를 다시 시작했습니다.",
+        "preparing_capture": "캡처를 준비 중입니다. 녹화 시작 전 창이 숨겨집니다.",
+        "recording_paused": "녹화를 일시정지했습니다. 미니 컨트롤러에서 재개하거나 중지할 수 있습니다.",
+        "saved_screen_recording": "{path}에 화면 녹화 파일을 저장했습니다",
+        "recording_stopped": "녹화를 중지했습니다.",
+        "capturing_snapshot": "스냅샷을 저장하는 중입니다. 잠시 창이 숨겨집니다.",
+        "back_to_menu": "메뉴로 돌아가기 (Esc)",
+        "capture_settings": "캡처 설정",
+        "capture_settings_subtitle": "녹화 화질, 오디오 옵션, 저장 위치를 조정하세요.",
+        "video_settings": "비디오 설정",
+        "audio_source": "오디오 소스",
+        "output": "출력",
+        "restore_defaults": "기본값 복원",
+        "screen_workflow": "화면 캡처 작업 흐름",
+        "hero_title": "먼저 대상을 고른 뒤 녹화를 시작하세요.",
+        "hero_subtitle": "창과 사용자 지정 영역 캡처는 전용 선택기를 사용하므로, 녹화 전에 정확한 대상을 지정할 수 있습니다.",
+        "helper": "녹화가 시작되면 앱은 스스로 숨기고, 재개·일시정지·정지를 위한 작은 캡처 제외 컨트롤러만 남깁니다.",
+        "capture_setup": "캡처 준비",
+        "capture_setup_hint": "오른쪽에서 캡처 모드를 고른 뒤, 녹화 전에 정확한 대상을 확정하세요.",
+        "recent_capture": "최근 캡처",
+        "full_screen": "전체 화면",
+        "window": "창",
+        "custom": "사용자 지정",
+        "capture_target": "캡처 대상",
+        "output_size": "출력 크기",
+        "frame_rate": "프레임 속도",
+        "system_audio": "시스템 오디오",
+        "external_mic": "외부 마이크",
+        "save_path": "저장 경로",
+        "edit": "변경",
+        "capture_target_unavailable": "캡처 대상이 사용할 수 없어 녹화를 중지했습니다.",
+        "mode_selected_full": "{mode} 모드를 선택했습니다. 캡처가 시작되면 녹화기가 자동으로 숨겨집니다.",
+        "mode_selected_other": "{mode} 모드를 선택했습니다. 캡처 전에 대상을 먼저 고르세요.",
+        "frame_rate_set": "프레임 속도를 {fps} FPS로 설정했습니다.",
+        "audio_toggle": "{name} {state}. 현재 OpenCV 경로에서는 오디오 녹화가 연결되어 있지 않습니다.",
+        "enabled": "켜짐",
+        "disabled": "꺼짐",
+        "defaults_restored": "기본값으로 복원했습니다.",
+        "stop_before_target_change": "캡처 대상을 바꾸기 전에 현재 녹화를 중지하세요.",
+        "full_screen_mode_note": "전체 화면 모드는 데스크톱 전체를 캡처합니다. 추가 대상 선택이 필요하지 않습니다.",
+        "window_windows_only": "현재 빌드에서는 창 선택 기능이 Windows에서만 지원됩니다.",
+        "hide_and_choose_target": "녹화기를 숨긴 뒤 캡처 대상을 선택하세요.",
+        "window_selected": "선택한 창: {title}",
+        "area_selected_size": "선택한 영역: {width} x {height}",
+        "area_selected": "영역을 선택했습니다.",
+        "target_selection_cancelled": "캡처 대상 선택을 취소했습니다.",
+        "entire_desktop": "전체 데스크톱",
+        "desktop_hint": "작업 공간 전체를 캡처할 때 사용하세요. 캡처가 시작되면 녹화기가 자동으로 숨겨집니다.",
+        "desktop_ready": "데스크톱 준비 완료",
+        "no_window_selected": "선택된 창이 없습니다",
+        "window_hint": "창 선택을 누른 뒤 캡처할 앱이나 창을 클릭하세요.",
+        "choose_window": "창 선택",
+        "window_notice": "창 녹화는 녹화 중 선택한 창의 크기 변경을 지원하지 않습니다.",
+        "area_summary": "{width} x {height} 영역",
+        "no_area_selected": "선택된 영역이 없습니다",
+        "area_hint": "영역 선택을 누른 뒤 원하는 범위를 드래그하세요.",
+        "choose_area": "영역 선택",
+        "matches_target_size": "선택한 대상 크기에 자동으로 맞춰 저장합니다.",
+        "saved_at_original_size": "{width} x {height} px (원본 캡처 크기로 저장)",
+        "backend_unavailable": "캡처 백엔드를 사용할 수 없습니다.",
+        "unable_capture_frame": "화면 프레임을 가져오지 못했습니다.",
+        "recording_to_with_controller": "{path}에 녹화 중입니다. 미니 컨트롤러에서 재개, 일시정지, 정지를 사용할 수 있습니다.",
+        "unable_capture_snapshot": "스냅샷을 캡처하지 못했습니다.",
+        "unable_save_snapshot": "{path}에 스냅샷을 저장하지 못했습니다",
+        "saved_snapshot": "{path}에 스냅샷을 저장했습니다",
+    },
+}
+
+
+def _screen_text(language: str, key: str, **kwargs) -> str:
+    normalized = language if language in SCREEN_CAPTURE_TRANSLATIONS else "en"
+    if key in SCREEN_CAPTURE_TRANSLATIONS[normalized]:
+        template = SCREEN_CAPTURE_TRANSLATIONS[normalized][key]
+    elif normalized == "ko" and key == "language_button":
+        template = "English"
+    else:
+        template = SCREEN_CAPTURE_TRANSLATIONS["en"][key]
+    return template.format(**kwargs)
 
 
 @dataclass
@@ -78,9 +267,10 @@ class CaptureSelectorOverlay(QWidget):
     selection_made = pyqtSignal(object)
     selection_cancelled = pyqtSignal()
 
-    def __init__(self, mode: str, excluded_handles: set[int] | None = None) -> None:
+    def __init__(self, mode: str, language: str = "en", excluded_handles: set[int] | None = None) -> None:
         super().__init__(None)
         self._mode = mode
+        self._language = language
         self._excluded_handles = set(excluded_handles or set())
         self._desktop_geometry = self._virtual_desktop_geometry()
         self._dragging = False
@@ -157,7 +347,9 @@ class CaptureSelectorOverlay(QWidget):
             event.accept()
             return
 
-        self.selection_made.emit(CaptureTarget(mode="region", rect=selection_rect, title="Custom area"))
+        self.selection_made.emit(
+            CaptureTarget(mode="region", rect=selection_rect, title=_screen_text(self._language, "custom_area"))
+        )
         self.close()
         event.accept()
 
@@ -188,8 +380,8 @@ class CaptureSelectorOverlay(QWidget):
 
     def _instruction_text(self) -> str:
         if self._mode == "window":
-            return "Click the window you want to capture. Press Esc to cancel."
-        return "Drag to select a capture area. Release to confirm, or press Esc to cancel."
+            return _screen_text(self._language, "overlay_window_instruction")
+        return _screen_text(self._language, "overlay_area_instruction")
 
     def _normalized_selection_rect(self) -> QRect | None:
         if self._start_point is None or self._current_point is None:
@@ -368,13 +560,69 @@ def _window_rect_from_handle(window_handle: int) -> QRect | None:
     return QRect(rect.left, rect.top, width, height)
 
 
+def _window_is_topmost(window_handle: int) -> bool:
+    if system() != "Windows":
+        return False
+
+    window_handle = _root_window_handle(window_handle)
+    try:
+        style = int(ctypes.windll.user32.GetWindowLongW(window_handle, GWL_EXSTYLE))
+    except (AttributeError, OSError):
+        return False
+    return bool(style & WS_EX_TOPMOST)
+
+
+def _root_window_handle(window_handle: int) -> int:
+    if system() != "Windows":
+        return window_handle
+
+    try:
+        root_handle = int(ctypes.windll.user32.GetAncestor(window_handle, GA_ROOT))
+    except (AttributeError, OSError):
+        return window_handle
+    return root_handle or window_handle
+
+
+def _set_window_topmost_state(window_handle: int, enabled: bool) -> bool:
+    if system() != "Windows":
+        return False
+
+    user32 = ctypes.windll.user32
+    root_handle = _root_window_handle(window_handle)
+    hwnd_insert_after = HWND_TOPMOST if enabled else HWND_NOTOPMOST
+    try:
+        if user32.IsIconic(root_handle):
+            user32.ShowWindow(root_handle, SW_RESTORE)
+        else:
+            user32.ShowWindow(root_handle, SW_SHOW)
+        ok = bool(
+            user32.SetWindowPos(
+                root_handle,
+                hwnd_insert_after,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+            )
+        )
+        if ok and enabled:
+            user32.BringWindowToTop(root_handle)
+            user32.SetForegroundWindow(root_handle)
+            user32.SetActiveWindow(root_handle)
+        return ok
+    except (AttributeError, OSError):
+        return False
+
+
 class FloatingCaptureController(QWidget):
     resume_requested = pyqtSignal()
     pause_requested = pyqtSignal()
     stop_requested = pyqtSignal()
 
-    def __init__(self) -> None:
+    def __init__(self, language: str = "en") -> None:
         super().__init__(None)
+        self._language = language
         self._drag_offset: QPoint | None = None
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -393,9 +641,9 @@ class FloatingCaptureController(QWidget):
             """
         )
 
-        self._resume_button = QPushButton("REC")
-        self._pause_button = QPushButton("PAUSE")
-        self._stop_button = QPushButton("STOP")
+        self._resume_button = QPushButton(_screen_text(self._language, "floating_resume"))
+        self._pause_button = QPushButton(_screen_text(self._language, "floating_pause"))
+        self._stop_button = QPushButton(_screen_text(self._language, "floating_stop"))
 
         self._resume_button.clicked.connect(self.resume_requested.emit)
         self._pause_button.clicked.connect(self.pause_requested.emit)
@@ -551,14 +799,118 @@ class RecordingFocusOverlay(QWidget):
         return geometry
 
 
+class RecordingCountdownOverlay(QWidget):
+    countdown_finished = pyqtSignal()
+
+    def __init__(self, target_provider) -> None:  # noqa: ANN001
+        super().__init__(None)
+        self._target_provider = target_provider
+        self._remaining = 3
+        self._target_rect: QRect | None = None
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._advance_countdown)
+
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+            | Qt.WindowType.WindowTransparentForInput
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+
+    def showEvent(self, event) -> None:  # noqa: ANN001
+        super().showEvent(event)
+        _set_window_capture_exclusion(self, excluded=True)
+        _set_window_click_through(self, enabled=True)
+
+    def start(self, seconds: int = 3) -> None:
+        self._remaining = max(1, seconds)
+        self._refresh_geometry()
+        self.show()
+        self.raise_()
+        _raise_window_topmost(self)
+        self.update()
+        self._timer.start(1000)
+
+    def stop(self) -> None:
+        self._timer.stop()
+        self.hide()
+
+    def _advance_countdown(self) -> None:
+        self._remaining -= 1
+        if self._remaining <= 0:
+            self.stop()
+            self.countdown_finished.emit()
+            return
+
+        self._refresh_geometry()
+        self.update()
+
+    def _refresh_geometry(self) -> None:
+        geometry = self._virtual_desktop_geometry()
+        self.setGeometry(geometry)
+
+        target = self._target_provider()
+        self._target_rect = QRect(target.rect) if target is not None and target.rect is not None else None
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if self._target_rect is not None:
+            local_target_rect = QRect(self._target_rect)
+            local_target_rect.translate(-self.geometry().topLeft())
+            center = local_target_rect.center()
+        else:
+            center = self.rect().center()
+
+        badge_size = 140
+        badge_rect = QRect(
+            center.x() - badge_size // 2,
+            center.y() - badge_size // 2,
+            badge_size,
+            badge_size,
+        )
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(11, 9, 19, 185))
+        painter.drawEllipse(badge_rect)
+
+        font = QFont("Segoe UI", 54, QFont.Weight.Bold)
+        painter.setFont(font)
+
+        shadow_rect = badge_rect.translated(0, 6)
+        painter.setPen(QColor(0, 0, 0, 140))
+        painter.drawText(shadow_rect, Qt.AlignmentFlag.AlignCenter, str(self._remaining))
+
+        painter.setPen(QColor(TEXT_PRIMARY))
+        painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, str(self._remaining))
+        painter.end()
+
+    def _virtual_desktop_geometry(self) -> QRect:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return QRect(0, 0, 1920, 1080)
+
+        geometry = QRect(screens[0].geometry())
+        for screen in screens[1:]:
+            geometry = geometry.united(screen.geometry())
+        return geometry
+
+
 class ScreenCapturePanel(QWidget):
     back_requested = pyqtSignal()
     browse_output_requested = pyqtSignal()
     recording_saved = pyqtSignal(str)
     snapshot_saved = pyqtSignal(str)
+    language_changed = pyqtSignal(str)
 
-    def __init__(self) -> None:
+    def __init__(self, language: str = "en") -> None:
         super().__init__()
+        self._language = language if language in SCREEN_CAPTURE_TRANSLATIONS else "en"
         self.setObjectName("screen_capture_panel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAutoFillBackground(True)
@@ -568,6 +920,8 @@ class ScreenCapturePanel(QWidget):
         self._preview_timer: QTimer | None = None
         self._recording_state: RecordingState = IDLE
         self._current_frame_bgr: np.ndarray | None = None
+        self._frame_intervals: deque[float] = deque(maxlen=FRAME_INTERVAL_WINDOW)
+        self._last_frame_timestamp: float | None = None
         self._capture_mode = "full_screen"
         self._recording_started_at: float | None = None
         self._elapsed_before_pause = 0.0
@@ -578,19 +932,22 @@ class ScreenCapturePanel(QWidget):
         self._restore_window_maximized = False
         self._host_window_hidden = False
         self._hidden_for_recording = False
+        self._promoted_window_handle: int | None = None
+        self._promoted_window_was_topmost = False
         self._floating_controller: FloatingCaptureController | None = None
         self._focus_overlay: RecordingFocusOverlay | None = None
+        self._countdown_overlay: RecordingCountdownOverlay | None = None
 
         self._capture_tabs = QButtonGroup(self)
         self._capture_tabs.setExclusive(True)
         self._frame_rate_buttons = QButtonGroup(self)
         self._frame_rate_buttons.setExclusive(True)
 
-        self._status_label = QLabel("Ready")
+        self._status_label = QLabel(_screen_text(self._language, "status_ready"))
         self._status_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         self._status_label.setWordWrap(True)
 
-        self._recent_capture_name = QLabel("No capture yet")
+        self._recent_capture_name = QLabel(_screen_text(self._language, "no_capture"))
         self._recent_capture_name.setStyleSheet("color: #cbd5e1; font-size: 13px;")
 
         self._recent_capture_thumb = QLabel("CAP")
@@ -624,10 +981,10 @@ class ScreenCapturePanel(QWidget):
         self._timer_label = QLabel("00:00:00")
         self._timer_label.setStyleSheet(f"color: {ACCENT}; font-size: 24px; font-weight: 800;")
 
-        self._record_button = QPushButton("Record")
-        self._snapshot_button = QPushButton("Snapshot")
-        self._pause_button = QPushButton("Pause")
-        self._stop_button = QPushButton("Stop")
+        self._record_button = QPushButton(_screen_text(self._language, "record"))
+        self._snapshot_button = QPushButton(_screen_text(self._language, "snapshot"))
+        self._pause_button = QPushButton(_screen_text(self._language, "pause"))
+        self._stop_button = QPushButton(_screen_text(self._language, "stop"))
         self._target_summary_label = QLabel()
         self._target_summary_label.setWordWrap(True)
         self._target_summary_label.setMinimumHeight(22)
@@ -674,7 +1031,7 @@ class ScreenCapturePanel(QWidget):
                 import cv2
                 from core.recorder import Recorder
             except ModuleNotFoundError as exc:
-                self.set_status(f"Screen capture backend is unavailable. Missing dependency: {exc.name}")
+                self.set_status(_screen_text(self._language, "capture_backend_missing", name=exc.name))
                 return
             self._cv2 = cv2
             self._recorder = Recorder()
@@ -685,7 +1042,7 @@ class ScreenCapturePanel(QWidget):
 
         self._restart_preview_timer()
         self._poll_frame()
-        self.set_status("Capture backend ready.")
+        self.set_status(_screen_text(self._language, "capture_backend_ready"))
 
     def stop_preview(self) -> None:
         if self._preview_timer is not None:
@@ -706,12 +1063,16 @@ class ScreenCapturePanel(QWidget):
 
         self._teardown_floating_controller()
         self._teardown_focus_overlay()
+        self._teardown_countdown_overlay()
+        self._restore_promoted_target_window()
         if self._host_window_hidden:
             self._restore_host_window()
 
         self._recorder = None
         self._cv2 = None
         self._current_frame_bgr = None
+        self._last_frame_timestamp = None
+        self._frame_intervals.clear()
         self._recording_started_at = None
         self._elapsed_before_pause = 0.0
         self._hidden_for_recording = False
@@ -736,10 +1097,13 @@ class ScreenCapturePanel(QWidget):
         if self._cv2 is None or self._recorder is None:
             return
 
+        if self._countdown_overlay is not None and self._countdown_overlay.isVisible():
+            return
+
         if self._recording_state == PAUSED:
             self._recording_started_at = perf_counter()
             self._set_recording_state(RECORDING)
-            self.set_status("Recording resumed.")
+            self.set_status(_screen_text(self._language, "recording_resumed"))
             return
 
         if self._recording_state == RECORDING:
@@ -748,8 +1112,12 @@ class ScreenCapturePanel(QWidget):
         if not self._ensure_capture_target_ready("record"):
             return
 
-        self.set_status("Preparing capture. Recorder will hide before recording starts.")
-        self._run_hidden_host_action(self._start_recording_now, restore_after=False)
+        if self._capture_mode == "window":
+            self._promote_target_window_for_capture()
+            QApplication.processEvents()
+
+        self.set_status(_screen_text(self._language, "preparing_capture"))
+        self._run_hidden_host_action(self._begin_recording_countdown, restore_after=False)
 
     def pause_recording(self) -> None:
         if self._recording_state != RECORDING:
@@ -759,7 +1127,7 @@ class ScreenCapturePanel(QWidget):
             self._elapsed_before_pause += perf_counter() - self._recording_started_at
         self._recording_started_at = None
         self._set_recording_state(PAUSED)
-        self.set_status("Recording paused. Use the mini controller to resume or stop.")
+        self.set_status(_screen_text(self._language, "recording_paused"))
 
     def stop_recording(self) -> None:
         if self._recording_state == IDLE or self._recorder is None:
@@ -779,10 +1147,10 @@ class ScreenCapturePanel(QWidget):
 
         if saved_path is not None:
             self.set_recent_capture(saved_path.name)
-            self.set_status(f"Saved screen recording to {saved_path}")
+            self.set_status(_screen_text(self._language, "saved_screen_recording", path=saved_path))
             self.recording_saved.emit(str(saved_path))
         else:
-            self.set_status("Recording stopped.")
+            self.set_status(_screen_text(self._language, "recording_stopped"))
 
     def capture_snapshot(self) -> None:
         if self._cv2 is None:
@@ -793,8 +1161,9 @@ class ScreenCapturePanel(QWidget):
         if not self._ensure_capture_target_ready("snapshot"):
             return
 
-        self.set_status("Capturing snapshot. Recorder will hide for a moment.")
-        self._run_hidden_host_action(self._capture_snapshot_now, restore_after=True)
+        self.set_status(_screen_text(self._language, "capturing_snapshot"))
+        restore_after = self._capture_mode != "window"
+        self._run_hidden_host_action(self._capture_snapshot_now, restore_after=restore_after)
 
     def _build_body(self) -> QHBoxLayout:
         layout = QHBoxLayout()
@@ -845,14 +1214,14 @@ class ScreenCapturePanel(QWidget):
         layout.setContentsMargins(22, 24, 22, 24)
         layout.setSpacing(18)
 
-        back_button = QPushButton("Back to Menu")
+        back_button = QPushButton(_screen_text(self._language, "back_to_menu"))
         back_button.clicked.connect(self.back_requested.emit)
         back_button.setCursor(Qt.CursorShape.PointingHandCursor)
         back_button.setStyleSheet(self._sidebar_button_style())
 
-        title = QLabel("Capture Settings")
+        title = QLabel(_screen_text(self._language, "capture_settings"))
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 20px; font-weight: 700;")
-        subtitle = QLabel("Adjust recording quality, audio options, and the output location.")
+        subtitle = QLabel(_screen_text(self._language, "capture_settings_subtitle"))
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
@@ -860,19 +1229,19 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addSpacing(4)
-        layout.addWidget(self._build_section_title("Video Settings"))
+        layout.addWidget(self._build_section_title(_screen_text(self._language, "video_settings")))
         layout.addWidget(self._build_output_size_group())
         layout.addLayout(self._build_frame_rate_group())
         layout.addSpacing(4)
-        layout.addWidget(self._build_section_title("Audio Source"))
+        layout.addWidget(self._build_section_title(_screen_text(self._language, "audio_source")))
         layout.addLayout(self._build_audio_group())
         layout.addSpacing(4)
-        layout.addWidget(self._build_section_title("Output"))
+        layout.addWidget(self._build_section_title(_screen_text(self._language, "output")))
         layout.addLayout(self._build_output_group())
         layout.addStretch(1)
         layout.addWidget(self._status_label)
 
-        restore_button = QPushButton("Restore Defaults")
+        restore_button = QPushButton(_screen_text(self._language, "restore_defaults"))
         restore_button.clicked.connect(self._restore_defaults)
         restore_button.setCursor(Qt.CursorShape.PointingHandCursor)
         restore_button.setStyleSheet(self._sidebar_button_style())
@@ -895,28 +1264,24 @@ class ScreenCapturePanel(QWidget):
             """
         )
 
-        badge = QLabel("Screen capture workflow")
+        badge = QLabel(_screen_text(self._language, "screen_workflow"))
         badge.setStyleSheet(self._badge_style("#1d1730", "#c4b5fd"))
 
-        title = QLabel("Select the target first, then let the recorder step out of the way.")
+        title = QLabel(_screen_text(self._language, "hero_title"))
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 28px; font-weight: 700;")
 
-        subtitle = QLabel(
-            "Window and custom-area capture now use a dedicated picker so you can lock onto the exact target before recording."
-        )
+        subtitle = QLabel(_screen_text(self._language, "hero_subtitle"))
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
 
-        helper = QLabel(
-            "When recording starts, the app hides itself and leaves behind only a tiny capture-excluded controller for resume, pause, and stop."
-        )
+        helper = QLabel(_screen_text(self._language, "helper"))
         helper.setWordWrap(True)
         helper.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
 
-        setup_title = QLabel("Capture Setup")
+        setup_title = QLabel(_screen_text(self._language, "capture_setup"))
         setup_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 16px; font-weight: 700;")
 
-        setup_hint = QLabel("Choose the capture mode on the right, then confirm the exact target before you record.")
+        setup_hint = QLabel(_screen_text(self._language, "capture_setup_hint"))
         setup_hint.setWordWrap(True)
         setup_hint.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
         self._window_recording_notice = QLabel()
@@ -971,7 +1336,7 @@ class ScreenCapturePanel(QWidget):
             """
         )
 
-        recent_title = QLabel("Recent Capture")
+        recent_title = QLabel(_screen_text(self._language, "recent_capture"))
         recent_title.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 10px; font-weight: 700; text-transform: uppercase;")
 
         recent_text_layout = QVBoxLayout()
@@ -1044,9 +1409,9 @@ class ScreenCapturePanel(QWidget):
         layout.setSpacing(8)
 
         for label, mode_name, checked in (
-            ("Full Screen", "full_screen", True),
-            ("Window", "window", False),
-            ("Custom", "region", False),
+            (_screen_text(self._language, "full_screen"), "full_screen", True),
+            (_screen_text(self._language, "window"), "window", False),
+            (_screen_text(self._language, "custom"), "region", False),
         ):
             button = QPushButton(label)
             button.setCheckable(True)
@@ -1103,7 +1468,7 @@ class ScreenCapturePanel(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Capture Target")
+        title = QLabel(_screen_text(self._language, "capture_target"))
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
 
         layout.addWidget(title)
@@ -1119,7 +1484,7 @@ class ScreenCapturePanel(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
-        caption = QLabel("Output Size")
+        caption = QLabel(_screen_text(self._language, "output_size"))
         caption.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 700; text-transform: uppercase;")
         layout.addWidget(caption)
         layout.addWidget(self._output_size_value)
@@ -1131,7 +1496,7 @@ class ScreenCapturePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        caption = QLabel("Frame Rate")
+        caption = QLabel(_screen_text(self._language, "frame_rate"))
         caption.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 700; text-transform: uppercase;")
         layout.addWidget(caption)
 
@@ -1175,8 +1540,8 @@ class ScreenCapturePanel(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        layout.addLayout(self._build_switch_row("System Audio", self._system_audio_switch))
-        layout.addLayout(self._build_switch_row("External Mic", self._external_mic_switch))
+        layout.addLayout(self._build_switch_row(_screen_text(self._language, "system_audio"), self._system_audio_switch))
+        layout.addLayout(self._build_switch_row(_screen_text(self._language, "external_mic"), self._external_mic_switch))
         return layout
 
     def _build_switch_row(self, text: str, switch: QCheckBox) -> QHBoxLayout:
@@ -1196,10 +1561,10 @@ class ScreenCapturePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        caption = QLabel("Save Path")
+        caption = QLabel(_screen_text(self._language, "save_path"))
         caption.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 700; text-transform: uppercase;")
 
-        edit_button = QPushButton("Edit")
+        edit_button = QPushButton(_screen_text(self._language, "edit"))
         edit_button.clicked.connect(self.browse_output_requested.emit)
         edit_button.setCursor(Qt.CursorShape.PointingHandCursor)
         edit_button.setFixedWidth(68)
@@ -1215,14 +1580,24 @@ class ScreenCapturePanel(QWidget):
         layout.addLayout(row)
         return layout
 
+    def _toggle_language(self) -> None:
+        self.language_changed.emit("ko" if self._language == "en" else "en")
+
     def _poll_frame(self) -> None:
         frame_bgr = self._grab_screen_frame()
         if frame_bgr is None:
             self._current_frame_bgr = None
             if self._recording_state == RECORDING:
                 self.stop_recording()
-                self.set_status("Capture target is unavailable. Recording stopped.")
+                self.set_status(_screen_text(self._language, "capture_target_unavailable"))
             return
+
+        now = perf_counter()
+        if self._last_frame_timestamp is not None:
+            interval = now - self._last_frame_timestamp
+            if interval > 0:
+                self._frame_intervals.append(interval)
+        self._last_frame_timestamp = now
 
         self._current_frame_bgr = frame_bgr
 
@@ -1254,16 +1629,22 @@ class ScreenCapturePanel(QWidget):
         if target is None:
             return None
 
+        live_rect = target.rect
         if target.window_handle is not None:
-            screen = self._screen_for_rect(target.rect)
-            if screen is not None:
-                pixmap = screen.grabWindow(target.window_handle)
-                if not pixmap.isNull():
-                    return pixmap.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
+            refreshed_rect = _window_rect_from_handle(target.window_handle)
+            if refreshed_rect is not None:
+                live_rect = refreshed_rect
+                self._window_target = CaptureTarget(
+                    mode=target.mode,
+                    rect=refreshed_rect,
+                    window_handle=target.window_handle,
+                    title=target.title,
+                )
 
-        if target.rect is None:
+        if live_rect is None:
             return None
-        return self._crop_image(self._grab_virtual_desktop_image(), target.rect)
+
+        return self._crop_image(self._grab_virtual_desktop_image(), live_rect)
 
     def _grab_selected_region_image(self) -> QImage | None:
         target = self._region_target
@@ -1330,6 +1711,25 @@ class ScreenCapturePanel(QWidget):
         except ValueError:
             return DEFAULT_CAPTURE_FPS
 
+    def _estimated_capture_fps(self) -> float:
+        fallback_fps = float(self._selected_fps())
+        if not self._frame_intervals:
+            return fallback_fps
+
+        sorted_intervals = sorted(self._frame_intervals)
+        trim = max(1, len(sorted_intervals) // 10) if len(sorted_intervals) >= 10 else 0
+        stable_intervals = sorted_intervals[trim:-trim] if trim else sorted_intervals
+        if not stable_intervals:
+            return fallback_fps
+
+        average_interval = sum(stable_intervals) / len(stable_intervals)
+        if average_interval <= 0:
+            return fallback_fps
+
+        measured_fps = 1.0 / average_interval
+        bounded_fps = max(MIN_CAPTURE_FPS, min(MAX_CAPTURE_FPS, measured_fps))
+        return round(min(bounded_fps, fallback_fps), 2)
+
     def _restart_preview_timer(self) -> None:
         if self._preview_timer is None:
             return
@@ -1341,7 +1741,9 @@ class ScreenCapturePanel(QWidget):
         is_recording = state == RECORDING
         is_paused = state == PAUSED
 
-        self._record_button.setText("Resume" if is_paused else "Record")
+        self._record_button.setText(
+            _screen_text(self._language, "resume") if is_paused else _screen_text(self._language, "record")
+        )
         self._pause_button.setEnabled(is_recording)
         self._stop_button.setEnabled(is_recording or is_paused)
         self._update_floating_controller()
@@ -1361,17 +1763,17 @@ class ScreenCapturePanel(QWidget):
         self._update_capture_target_ui()
         mode_label = button.text()
         if self._capture_mode == "full_screen":
-            self.set_status(f"{mode_label} selected. The recorder hides itself when capture starts.")
+            self.set_status(_screen_text(self._language, "mode_selected_full", mode=mode_label))
         else:
-            self.set_status(f"{mode_label} selected. Choose a target before capture.")
+            self.set_status(_screen_text(self._language, "mode_selected_other", mode=mode_label))
 
     def _on_frame_rate_changed(self) -> None:
         self._restart_preview_timer()
-        self.set_status(f"Frame rate set to {self._selected_fps()} FPS.")
+        self.set_status(_screen_text(self._language, "frame_rate_set", fps=self._selected_fps()))
 
     def _on_audio_toggle(self, name: str, checked: bool) -> None:
-        state = "enabled" if checked else "disabled"
-        self.set_status(f"{name} {state}. Audio recording is not wired in the OpenCV path yet.")
+        state = _screen_text(self._language, "enabled") if checked else _screen_text(self._language, "disabled")
+        self.set_status(_screen_text(self._language, "audio_toggle", name=name, state=state))
 
     def _restore_defaults(self) -> None:
         capture_buttons = self._capture_tabs.buttons()
@@ -1387,7 +1789,7 @@ class ScreenCapturePanel(QWidget):
         self._region_target = None
         self._restart_preview_timer()
         self._update_capture_target_ui()
-        self.set_status("Defaults restored.")
+        self.set_status(_screen_text(self._language, "defaults_restored"))
 
     def _build_recording_path(self) -> Path:
         return self._save_directory / f"screen_recording_{self._timestamp_string()}.avi"
@@ -1424,14 +1826,15 @@ class ScreenCapturePanel(QWidget):
             "}"
         )
 
-    def _sidebar_button_style(self) -> str:
+    def _sidebar_button_style(self, compact: bool = False) -> str:
+        padding = "10px 0" if compact else "10px 14px"
         return (
             f"QPushButton {{"
             f"background: {SURFACE_ALT};"
             f"color: {TEXT_PRIMARY};"
             f"border: 1px solid {BORDER};"
             "border-radius: 12px;"
-            "padding: 10px 14px;"
+            f"padding: {padding};"
             "font-size: 13px;"
             "font-weight: 700;"
             "}"
@@ -1514,23 +1917,27 @@ class ScreenCapturePanel(QWidget):
 
     def _begin_target_selection(self) -> None:
         if self._recording_state != IDLE:
-            self.set_status("Stop the current recording before changing the capture target.")
+            self.set_status(_screen_text(self._language, "stop_before_target_change"))
             return
         if self._selection_overlay is not None:
             return
         if self._capture_mode == "full_screen":
-            self.set_status("Full screen mode captures the entire desktop. No extra target selection is needed.")
+            self.set_status(_screen_text(self._language, "full_screen_mode_note"))
             return
         if self._capture_mode == "window" and system() != "Windows":
-            self.set_status("Window picking is currently supported on Windows in this build.")
+            self.set_status(_screen_text(self._language, "window_windows_only"))
             return
 
-        self.set_status("Hide recorder and choose a capture target.")
+        self.set_status(_screen_text(self._language, "hide_and_choose_target"))
         self._run_hidden_host_action(self._show_target_selector, restore_after=False)
 
     def _show_target_selector(self) -> None:
         excluded_handles = self._excluded_window_handles()
-        self._selection_overlay = CaptureSelectorOverlay(self._capture_mode, excluded_handles=excluded_handles)
+        self._selection_overlay = CaptureSelectorOverlay(
+            self._capture_mode,
+            language=self._language,
+            excluded_handles=excluded_handles,
+        )
         self._selection_overlay.selection_made.connect(self._on_target_selected)
         self._selection_overlay.selection_cancelled.connect(self._on_target_selection_cancelled)
         self._selection_overlay.show()
@@ -1542,13 +1949,20 @@ class ScreenCapturePanel(QWidget):
 
         if target.mode == "window":
             self._window_target = target
-            self.set_status(f"Window selected: {target.title}")
+            self.set_status(_screen_text(self._language, "window_selected", title=target.title))
         else:
             self._region_target = target
             if target.rect is not None:
-                self.set_status(f"Area selected: {target.rect.width()} x {target.rect.height()}")
+                self.set_status(
+                    _screen_text(
+                        self._language,
+                        "area_selected_size",
+                        width=target.rect.width(),
+                        height=target.rect.height(),
+                    )
+                )
             else:
-                self.set_status("Area selected.")
+                self.set_status(_screen_text(self._language, "area_selected"))
 
         self._restore_host_window()
         self._update_capture_target_ui()
@@ -1566,20 +1980,24 @@ class ScreenCapturePanel(QWidget):
         self._selection_overlay = None
         self._restore_host_window()
         self._pending_action = None
-        self.set_status("Capture target selection cancelled.")
+        self.set_status(_screen_text(self._language, "target_selection_cancelled"))
 
     def _current_target(self) -> CaptureTarget | None:
         if self._capture_mode == "window":
             return self._window_target
         if self._capture_mode == "region":
             return self._region_target
-        return CaptureTarget(mode="full_screen", rect=self._virtual_desktop_geometry(), title="Entire desktop")
+        return CaptureTarget(
+            mode="full_screen",
+            rect=self._virtual_desktop_geometry(),
+            title=_screen_text(self._language, "entire_desktop"),
+        )
 
     def _update_capture_target_ui(self) -> None:
         if self._capture_mode == "full_screen":
-            self._target_summary_label.setText("Entire desktop")
-            self._target_hint_label.setText("Use this when you want the whole workspace. The recorder hides itself when capture starts.")
-            self._select_target_button.setText("Desktop Ready")
+            self._target_summary_label.setText(_screen_text(self._language, "entire_desktop"))
+            self._target_hint_label.setText(_screen_text(self._language, "desktop_hint"))
+            self._select_target_button.setText(_screen_text(self._language, "desktop_ready"))
             self._select_target_button.setEnabled(False)
             self._output_size_value.setText(self._capture_dimensions_text(self._virtual_desktop_geometry()))
             self._window_recording_notice.hide()
@@ -1587,30 +2005,32 @@ class ScreenCapturePanel(QWidget):
 
         if self._capture_mode == "window":
             target = self._window_target
-            self._target_summary_label.setText(target.title if target is not None else "No window selected")
-            self._target_hint_label.setText("Click Choose Window, then click the app or window you want to capture.")
-            self._select_target_button.setText("Choose Window")
+            self._target_summary_label.setText(target.title if target is not None else _screen_text(self._language, "no_window_selected"))
+            self._target_hint_label.setText(_screen_text(self._language, "window_hint"))
+            self._select_target_button.setText(_screen_text(self._language, "choose_window"))
             self._select_target_button.setEnabled(True)
             self._output_size_value.setText(self._capture_dimensions_text(target.rect if target is not None else None))
-            self._window_recording_notice.setText("Window recording does not support resizing the selected window while recording.")
+            self._window_recording_notice.setText(_screen_text(self._language, "window_notice"))
             self._window_recording_notice.show()
             return
 
         target = self._region_target
         if target is not None and target.rect is not None:
-            self._target_summary_label.setText(f"{target.rect.width()} x {target.rect.height()} area")
+            self._target_summary_label.setText(
+                _screen_text(self._language, "area_summary", width=target.rect.width(), height=target.rect.height())
+            )
         else:
-            self._target_summary_label.setText("No area selected")
-        self._target_hint_label.setText("Click Choose Area, then drag across the region you want to capture.")
-        self._select_target_button.setText("Choose Area")
+            self._target_summary_label.setText(_screen_text(self._language, "no_area_selected"))
+        self._target_hint_label.setText(_screen_text(self._language, "area_hint"))
+        self._select_target_button.setText(_screen_text(self._language, "choose_area"))
         self._select_target_button.setEnabled(True)
         self._output_size_value.setText(self._capture_dimensions_text(target.rect if target is not None else None))
         self._window_recording_notice.hide()
 
     def _capture_dimensions_text(self, rect: QRect | None) -> str:
         if rect is None:
-            return "Matches the selected target size automatically."
-        return f"{rect.width()} x {rect.height()} px (saved at original capture size)"
+            return _screen_text(self._language, "matches_target_size")
+        return _screen_text(self._language, "saved_at_original_size", width=rect.width(), height=rect.height())
 
     def _run_hidden_host_action(self, callback, restore_after: bool) -> None:  # noqa: ANN001
         self._hide_host_window()
@@ -1624,11 +2044,19 @@ class ScreenCapturePanel(QWidget):
 
         QTimer.singleShot(HOST_HIDE_DELAY_MS, runner)
 
+    def _begin_recording_countdown(self) -> None:
+        if self._countdown_overlay is None:
+            self._countdown_overlay = RecordingCountdownOverlay(self._recording_focus_target)
+            self._countdown_overlay.countdown_finished.connect(self._start_recording_now)
+
+        self._countdown_overlay.start(seconds=3)
+
     def _hide_host_window(self) -> None:
         host = self.window()
         if host is None or self._host_window_hidden:
             return
 
+        _set_window_capture_exclusion(host, excluded=True)
         self._restore_window_maximized = bool(host.isMaximized())
         host.hide()
         QApplication.processEvents()
@@ -1646,25 +2074,73 @@ class ScreenCapturePanel(QWidget):
         host.raise_()
         host.activateWindow()
         QApplication.processEvents()
+        _set_window_capture_exclusion(host, excluded=False)
         self._host_window_hidden = False
 
+    def _promote_target_window_for_capture(self) -> None:
+        if self._capture_mode != "window":
+            return
+
+        target = self._window_target
+        if target is None or target.window_handle is None:
+            return
+
+        window_handle = _root_window_handle(target.window_handle)
+        if self._promoted_window_handle == window_handle:
+            _set_window_topmost_state(window_handle, enabled=True)
+            return
+
+        self._restore_promoted_target_window()
+        self._promoted_window_handle = window_handle
+        self._promoted_window_was_topmost = _window_is_topmost(window_handle)
+        _set_window_topmost_state(window_handle, enabled=True)
+
+    def _restore_promoted_target_window(self) -> None:
+        if self._promoted_window_handle is None:
+            return
+
+        if not self._promoted_window_was_topmost:
+            _set_window_topmost_state(self._promoted_window_handle, enabled=False)
+
+        self._promoted_window_handle = None
+        self._promoted_window_was_topmost = False
+
+    def _teardown_countdown_overlay(self) -> None:
+        if self._countdown_overlay is not None:
+            self._countdown_overlay.stop()
+            self._countdown_overlay.deleteLater()
+        self._countdown_overlay = None
+
     def _start_recording_now(self) -> None:
+        self._teardown_countdown_overlay()
         if self._cv2 is None or self._recorder is None:
             self._restore_host_window()
-            self.set_status("Capture backend is unavailable.")
+            self.set_status(_screen_text(self._language, "backend_unavailable"))
+            return
+
+        self._start_recording_after_promotion()
+
+    def _start_recording_after_promotion(self) -> None:
+        if self._cv2 is None or self._recorder is None:
+            self._restore_promoted_target_window()
+            self._restore_host_window()
+            self.set_status(_screen_text(self._language, "backend_unavailable"))
             return
 
         frame_bgr = self._grab_screen_frame()
         if frame_bgr is None:
+            self._restore_promoted_target_window()
             self._restore_host_window()
-            self.set_status("Unable to capture a screen frame.")
+            self.set_status(_screen_text(self._language, "unable_capture_frame"))
             return
 
         output_path = self._build_recording_path()
         height, width = frame_bgr.shape[:2]
+        recording_fps = self._estimated_capture_fps()
         try:
-            self._recorder.start(output_path=output_path, fps=float(self._selected_fps()), size=(width, height))
+            self._recorder.start(output_path=output_path, fps=recording_fps, size=(width, height))
         except RuntimeError as exc:
+            self._restore_promoted_target_window()
             self._restore_host_window()
             self.set_status(str(exc))
             return
@@ -1675,31 +2151,52 @@ class ScreenCapturePanel(QWidget):
         self._set_recording_state(RECORDING)
         self._show_floating_controller()
         self._show_focus_overlay()
-        self.set_status(f"Recording to {output_path}. Use the mini controller to resume, pause, or stop.")
+        self.set_status(_screen_text(self._language, "recording_to_with_controller", path=output_path))
 
     def _capture_snapshot_now(self) -> None:
         if self._cv2 is None:
-            self.set_status("Capture backend is unavailable.")
+            self.set_status(_screen_text(self._language, "backend_unavailable"))
+            return
+
+        if self._capture_mode == "window":
+            self._promote_target_window_for_capture()
+            QApplication.processEvents()
+            QTimer.singleShot(120, self._capture_snapshot_after_promotion)
+            return
+
+        self._capture_snapshot_after_promotion()
+
+    def _capture_snapshot_after_promotion(self) -> None:
+        if self._cv2 is None:
+            self._restore_promoted_target_window()
+            self._restore_host_window()
+            self.set_status(_screen_text(self._language, "backend_unavailable"))
             return
 
         frame_bgr = self._grab_screen_frame()
         if frame_bgr is None:
-            self.set_status("Unable to capture a snapshot.")
+            self._restore_promoted_target_window()
+            self._restore_host_window()
+            self.set_status(_screen_text(self._language, "unable_capture_snapshot"))
             return
 
         output_path = self._build_snapshot_path()
         output_path.parent.mkdir(parents=True, exist_ok=True)
         if not self._cv2.imwrite(str(output_path), frame_bgr):
-            self.set_status(f"Unable to save snapshot to {output_path}")
+            self._restore_promoted_target_window()
+            self._restore_host_window()
+            self.set_status(_screen_text(self._language, "unable_save_snapshot", path=output_path))
             return
 
+        self._restore_promoted_target_window()
+        self._restore_host_window()
         self.set_recent_capture(output_path.name)
-        self.set_status(f"Saved snapshot to {output_path}")
+        self.set_status(_screen_text(self._language, "saved_snapshot", path=output_path))
         self.snapshot_saved.emit(str(output_path))
 
     def _show_floating_controller(self) -> None:
         if self._floating_controller is None:
-            self._floating_controller = FloatingCaptureController()
+            self._floating_controller = FloatingCaptureController(language=self._language)
             self._floating_controller.resume_requested.connect(self.start_or_resume_recording)
             self._floating_controller.pause_requested.connect(self.pause_recording)
             self._floating_controller.stop_requested.connect(self.stop_recording)
@@ -1773,8 +2270,10 @@ class ScreenCapturePanel(QWidget):
 
     def _finish_hidden_recording_session(self) -> None:
         self._hidden_for_recording = False
+        self._teardown_countdown_overlay()
         self._teardown_floating_controller()
         self._teardown_focus_overlay()
+        self._restore_promoted_target_window()
         self._restore_host_window()
 
     def _screen_for_rect(self, rect: QRect | None):

@@ -6,8 +6,8 @@ from platform import system
 from time import perf_counter
 
 import numpy as np
-from PyQt6.QtCore import QRectF, QSize, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+from PyQt6.QtCore import QPoint, QRectF, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QResizeEvent
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -30,19 +30,170 @@ DEFAULT_CAMERA_FPS = 30.0
 COMMON_CAMERA_FPS = (15.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0)
 MAX_CAMERA_SCAN_INDEX = 5
 
+WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "camera_preview_starting": "Camera preview is starting...",
+        "live_preview": "Live preview",
+        "rec_short": "REC",
+        "preview_mode": "Preview mode",
+        "no_capture": "No capture yet",
+        "take_photo": "Take Photo",
+        "pause_recording": "Pause Recording",
+        "backend_missing": "Webcam backend is unavailable. Missing dependency: {name}",
+        "no_camera_devices": "No camera devices detected.",
+        "unable_open_camera": "Unable to open camera {index}.",
+        "unable_open_camera_device": "Unable to open camera device {index}.",
+        "preview_mode_camera": "Preview mode: camera {index}",
+        "camera_preview_unavailable": "Camera preview is unavailable. Check webcam access.",
+        "recording_to": "Recording to {path}",
+        "recording_resumed": "Recording resumed.",
+        "preparing_recording": "Preparing recording: {name}",
+        "recording_paused": "Recording paused: {path}",
+        "recording_paused_simple": "Recording paused.",
+        "recording_cancelled": "Recording cancelled.",
+        "recording_stopped": "Recording stopped.",
+        "snapshot_unavailable": "Snapshot unavailable. Wait for the camera preview.",
+        "saved_photo": "Saved photo to {path}",
+        "saved_recording": "Saved recording to {path}",
+        "live_dimensions": "{width} x {height} live",
+        "stop": "STOP",
+        "paused": "PAUSED",
+        "resume": "RESUME",
+        "wait": "WAIT",
+        "back_to_menu": "Back to Menu (Esc)",
+        "camera_settings": "Camera Settings",
+        "configure_device": "Configure device and quality",
+        "video_device": "Video Device",
+        "resolution": "Resolution",
+        "frame_rate": "Frame Rate",
+        "microphone": "Microphone",
+        "save_path": "Save Path",
+        "browse": "Browse",
+        "recent_capture": "Recent Capture",
+        "flash": "Flash",
+        "grid": "Grid",
+        "settings": "Settings",
+        "default_system_mic": "Default - System Mic",
+        "webcam_internal_mic": "Webcam Internal Mic",
+        "mute": "None (Mute)",
+        "no_camera_detected": "No camera detected",
+        "camera_label": "Camera {index}",
+        "stop_before_switch": "Stop recording before switching cameras.",
+        "failed_read_frame": "Failed to read a frame from the camera.",
+        "language_button": "한국어",
+    },
+    "ko": {
+        "camera_preview_starting": "카메라 미리보기를 시작하는 중입니다...",
+        "live_preview": "실시간 미리보기",
+        "rec_short": "REC",
+        "preview_mode": "미리보기 모드",
+        "no_capture": "아직 캡처가 없습니다",
+        "take_photo": "사진 촬영",
+        "pause_recording": "녹화 일시정지",
+        "backend_missing": "웹캠 백엔드를 사용할 수 없습니다. 누락된 의존성: {name}",
+        "no_camera_devices": "감지된 카메라 장치가 없습니다.",
+        "unable_open_camera": "카메라 {index}을(를) 열 수 없습니다.",
+        "unable_open_camera_device": "카메라 장치 {index}을(를) 열 수 없습니다.",
+        "preview_mode_camera": "미리보기 모드: 카메라 {index}",
+        "camera_preview_unavailable": "카메라 미리보기를 사용할 수 없습니다. 웹캠 접근 권한을 확인하세요.",
+        "recording_to": "{path}에 녹화 중입니다",
+        "recording_resumed": "녹화를 다시 시작했습니다.",
+        "preparing_recording": "녹화 준비 중: {name}",
+        "recording_paused": "녹화 일시정지: {path}",
+        "recording_paused_simple": "녹화를 일시정지했습니다.",
+        "recording_cancelled": "녹화를 취소했습니다.",
+        "recording_stopped": "녹화를 중지했습니다.",
+        "snapshot_unavailable": "사진을 저장할 수 없습니다. 카메라 미리보기를 기다려 주세요.",
+        "saved_photo": "{path}에 사진을 저장했습니다",
+        "saved_recording": "{path}에 녹화 파일을 저장했습니다",
+        "live_dimensions": "{width} x {height} 실시간",
+        "stop": "정지",
+        "paused": "일시정지",
+        "resume": "재개",
+        "wait": "대기",
+        "back_to_menu": "메뉴로 돌아가기 (Esc)",
+        "camera_settings": "카메라 설정",
+        "configure_device": "장치와 화질을 설정하세요",
+        "video_device": "비디오 장치",
+        "resolution": "해상도",
+        "frame_rate": "프레임 속도",
+        "microphone": "마이크",
+        "save_path": "저장 경로",
+        "browse": "찾아보기",
+        "recent_capture": "최근 캡처",
+        "flash": "플래시",
+        "grid": "그리드",
+        "settings": "설정",
+        "default_system_mic": "기본 - 시스템 마이크",
+        "webcam_internal_mic": "웹캠 내장 마이크",
+        "mute": "없음 (음소거)",
+        "no_camera_detected": "감지된 카메라가 없습니다",
+        "camera_label": "카메라 {index}",
+        "stop_before_switch": "카메라를 바꾸기 전에 현재 녹화를 중지하세요.",
+        "failed_read_frame": "카메라에서 프레임을 읽지 못했습니다.",
+        "language_button": "English",
+    },
+}
+
+
+def _webcam_text(language: str, key: str, **kwargs) -> str:
+    normalized = language if language in WEBCAM_TRANSLATIONS else "en"
+    template = WEBCAM_TRANSLATIONS[normalized][key]
+    return template.format(**kwargs)
+
+
+class UIFLashOverlay(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._excluded_widgets: list[QWidget] = []
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet("background: transparent;")
+        self.hide()
+
+    def set_excluded_widgets(self, widgets: list[QWidget]) -> None:
+        self._excluded_widgets = widgets
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(255, 255, 255, 225))
+
+        for widget in self._excluded_widgets:
+            if widget is None or not widget.isVisible():
+                continue
+            top_left = self.mapFromGlobal(widget.mapToGlobal(QPoint(0, 0)))
+            pixmap = widget.grab()
+            if widget.width() == widget.height():
+                painter.save()
+                clip_path = QPainterPath()
+                clip_path.addEllipse(QRectF(top_left.x(), top_left.y(), widget.width(), widget.height()))
+                painter.setClipPath(clip_path)
+                painter.drawPixmap(top_left, pixmap)
+                painter.restore()
+                continue
+            painter.drawPixmap(top_left, pixmap)
+
+        painter.end()
+
 
 class WebcamPage(QWidget):
     back_requested = pyqtSignal()
     browse_save_path_requested = pyqtSignal()
     recording_saved = pyqtSignal(str)
     snapshot_saved = pyqtSignal(str)
+    language_changed = pyqtSignal(str)
 
-    def __init__(self) -> None:
+    def __init__(self, language: str = "en") -> None:
         super().__init__()
+        self._language = language if language in WEBCAM_TRANSLATIONS else "en"
         self._recording_state: RecordingState = IDLE
         self._camera_view = CameraView()
         self._camera_view.setMinimumSize(900, 620)
         self._camera_view.setStyleSheet("background: #000000; border: none;")
+        self._camera_view.setText(_webcam_text(self._language, "camera_preview_starting"))
 
         self._save_directory = Path.home()
         self._cv2 = None
@@ -57,16 +208,17 @@ class WebcamPage(QWidget):
         self._last_frame_timestamp: float | None = None
         self._video_device_combo: QComboBox | None = None
 
-        self._preview_stats_badge = QLabel("Live preview")
+        self._preview_stats_badge = QLabel(_webcam_text(self._language, "live_preview"))
         self._preview_stats_badge.setStyleSheet(self._badge_style("#0f172a", "#94a3b8"))
 
-        self._recording_badge = QLabel("REC")
+        self._recording_badge = QLabel(_webcam_text(self._language, "rec_short"))
         self._recording_badge.setStyleSheet(self._badge_style("#dc2626", "white", bold=True))
         self._recording_badge.hide()
 
         self._flash_overlay = QFrame()
         self._flash_overlay.setStyleSheet("background: rgba(255, 255, 255, 0.85); border: none;")
         self._flash_overlay.hide()
+        self._ui_flash_overlay = UIFLashOverlay(self)
 
         self._save_path_input = QLineEdit()
         self._save_path_input.setReadOnly(True)
@@ -83,11 +235,11 @@ class WebcamPage(QWidget):
             """
         )
 
-        self._status_label = QLabel("Preview mode")
+        self._status_label = QLabel(_webcam_text(self._language, "preview_mode"))
         self._status_label.setWordWrap(True)
         self._status_label.setStyleSheet("color: #64748b; font-size: 12px;")
 
-        self._recent_capture_name = QLabel("No capture yet")
+        self._recent_capture_name = QLabel(_webcam_text(self._language, "no_capture"))
         self._recent_capture_name.setStyleSheet("color: #cbd5e1; font-size: 13px;")
 
         self._recent_capture_thumb = QLabel("IMG")
@@ -112,7 +264,7 @@ class WebcamPage(QWidget):
             "#0f172a",
             large=False,
             icon=self._build_camera_icon("#0f172a"),
-            tooltip="Take Photo",
+            tooltip=_webcam_text(self._language, "take_photo"),
         )
         self._record_button = self._build_capture_button("REC", "#dc2626", "white", large=True)
         self._pause_button = self._build_capture_button(
@@ -121,7 +273,7 @@ class WebcamPage(QWidget):
             "#cbd5e1",
             large=False,
             icon=self._build_pause_icon("#cbd5e1"),
-            tooltip="Pause Recording",
+            tooltip=_webcam_text(self._language, "pause_recording"),
         )
         self._pause_button.clicked.connect(self.pause_recording)
         self._photo_button.clicked.connect(self.capture_photo)
@@ -146,7 +298,7 @@ class WebcamPage(QWidget):
             import cv2
             from core.recorder import Recorder
         except ModuleNotFoundError as exc:
-            self.set_status(f"Webcam backend is unavailable. Missing dependency: {exc.name}")
+            self.set_status(_webcam_text(self._language, "backend_missing", name=exc.name))
             return
 
         if self._cv2 is None:
@@ -162,8 +314,9 @@ class WebcamPage(QWidget):
 
         if not self._available_camera_indices:
             self._release_camera()
-            self._camera_view.setText("No camera devices detected.")
-            self.set_status("No camera devices detected.")
+            message = _webcam_text(self._language, "no_camera_devices")
+            self._camera_view.setText(message)
+            self.set_status(message)
             return
 
         if self._camera_index not in self._available_camera_indices:
@@ -171,11 +324,11 @@ class WebcamPage(QWidget):
             self._sync_video_device_combo()
 
         if not self._open_camera(self._camera_index):
-            self._camera_view.setText(f"Unable to open camera {self._camera_index}.")
-            self.set_status(f"Unable to open camera device {self._camera_index}.")
+            self._camera_view.setText(_webcam_text(self._language, "unable_open_camera", index=self._camera_index))
+            self.set_status(_webcam_text(self._language, "unable_open_camera_device", index=self._camera_index))
             return
 
-        self.set_status(f"Preview mode: camera {self._camera_index}")
+        self.set_status(_webcam_text(self._language, "preview_mode_camera", index=self._camera_index))
 
     def stop_preview(self) -> None:
         if self._preview_timer is not None:
@@ -200,13 +353,17 @@ class WebcamPage(QWidget):
 
     def start_or_resume_recording(self) -> None:
         if self._camera_capture is None or self._recorder is None:
-            self.set_status("Camera preview is unavailable. Check webcam access.")
+            self.set_status(_webcam_text(self._language, "camera_preview_unavailable"))
             return
 
         if self._recording_state == PAUSED:
             output_path = self._recorder.output_path
             self.set_recording_state(RECORDING)
-            self.set_status(f"Recording to {output_path}" if output_path is not None else "Recording resumed.")
+            self.set_status(
+                _webcam_text(self._language, "recording_to", path=output_path)
+                if output_path is not None
+                else _webcam_text(self._language, "recording_resumed")
+            )
             return
 
         if self._recording_state != IDLE:
@@ -214,7 +371,14 @@ class WebcamPage(QWidget):
 
         self._pending_recording_path = self._build_recording_path()
         self.set_recording_state(STARTING)
-        self.set_status(f"Preparing recording: {self._pending_recording_path.name}")
+        self.set_status(_webcam_text(self._language, "preparing_recording", name=self._pending_recording_path.name))
+
+    def toggle_recording(self) -> None:
+        if self._recording_state in (IDLE, PAUSED):
+            self.start_or_resume_recording()
+            return
+        if self._recording_state in (STARTING, RECORDING):
+            self.stop_recording()
 
     def pause_recording(self) -> None:
         if self._recording_state != RECORDING or self._recorder is None:
@@ -222,7 +386,11 @@ class WebcamPage(QWidget):
 
         output_path = self._recorder.output_path
         self.set_recording_state(PAUSED)
-        self.set_status(f"Recording paused: {output_path}" if output_path is not None else "Recording paused.")
+        self.set_status(
+            _webcam_text(self._language, "recording_paused", path=output_path)
+            if output_path is not None
+            else _webcam_text(self._language, "recording_paused_simple")
+        )
 
     def stop_recording(self) -> None:
         if self._recording_state == IDLE or self._recorder is None:
@@ -235,26 +403,28 @@ class WebcamPage(QWidget):
             self._handle_saved_recording(saved_path)
         elif was_starting:
             self.set_recording_state(IDLE)
-            self.set_status("Recording cancelled.")
+            self.set_status(_webcam_text(self._language, "recording_cancelled"))
         else:
             self.set_recording_state(IDLE)
-            self.set_status("Recording stopped.")
+            self.set_status(_webcam_text(self._language, "recording_stopped"))
 
     def capture_photo(self) -> None:
         output_path = self._build_snapshot_path()
         if not self._camera_view.save_snapshot(output_path):
-            self.set_status("Snapshot unavailable. Wait for the camera preview.")
+            self.set_status(_webcam_text(self._language, "snapshot_unavailable"))
             return
 
         self.flash_capture()
         self.set_recent_capture(output_path.name)
-        self.set_status(f"Saved photo to {output_path}")
+        self.set_status(_webcam_text(self._language, "saved_photo", path=output_path))
         self.snapshot_saved.emit(str(output_path))
 
     def update_frame(self, frame_rgb: np.ndarray) -> None:
         self._camera_view.update_frame(frame_rgb)
         height, width, _ = frame_rgb.shape
-        self._preview_stats_badge.setText(f"{width} x {height} live")
+        self._preview_stats_badge.setText(_webcam_text(self._language, "live_dimensions", width=width, height=height))
+        if self._ui_flash_overlay.isVisible():
+            self._ui_flash_overlay.update()
 
     def set_recording_state(self, state: RecordingState) -> None:
         self._recording_state = state
@@ -266,20 +436,22 @@ class WebcamPage(QWidget):
         self._record_button.setEnabled(not is_starting)
         self._recording_badge.setVisible(is_recording or is_paused)
         if is_recording:
-            self._recording_badge.setText("REC")
-            self._record_button.setText("STOP")
+            self._recording_badge.setText(_webcam_text(self._language, "rec_short"))
+            self._record_button.setText(_webcam_text(self._language, "stop"))
             self._record_button.setStyleSheet(self._capture_button_style("#dc2626", "white", large=True))
         elif is_paused:
-            self._recording_badge.setText("PAUSED")
-            self._record_button.setText("RESUME")
+            self._recording_badge.setText(_webcam_text(self._language, "paused"))
+            self._record_button.setText(_webcam_text(self._language, "resume"))
             self._record_button.setStyleSheet(self._capture_button_style("#2563eb", "white", large=True))
         elif is_starting:
-            self._record_button.setText("WAIT")
+            self._record_button.setText(_webcam_text(self._language, "wait"))
             self._record_button.setStyleSheet(self._capture_button_style("#475569", "#e2e8f0", large=True))
         else:
-            self._record_button.setText("REC")
+            self._record_button.setText(_webcam_text(self._language, "rec_short"))
             self._recording_badge.hide()
             self._record_button.setStyleSheet(self._capture_button_style("#dc2626", "white", large=True))
+        if self._ui_flash_overlay.isVisible():
+            self._ui_flash_overlay.update()
 
     def set_status(self, message: str) -> None:
         self._status_label.setText(message)
@@ -298,6 +470,32 @@ class WebcamPage(QWidget):
         self._flash_overlay.raise_()
         QTimer.singleShot(120, self._flash_overlay.hide)
 
+    def toggle_interface_flash(self, checked: bool) -> None:
+        _ = checked
+        self._update_interface_flash_overlay()
+
+    def _update_interface_flash_overlay(self) -> None:
+        if not hasattr(self, "_preview_panel") or not hasattr(self, "_flash_button"):
+            return
+        self._ui_flash_overlay.setGeometry(self.rect())
+        self._ui_flash_overlay.set_excluded_widgets(
+            [self._preview_panel, self._flash_button, self._record_button, self._pause_button]
+        )
+        if self._flash_button.isChecked():
+            self._ui_flash_overlay.show()
+            self._ui_flash_overlay.raise_()
+            self._ui_flash_overlay.update()
+        else:
+            self._ui_flash_overlay.hide()
+
+    def toggle_grid(self) -> None:
+        self._camera_view.set_grid_enabled(self._grid_button.isChecked())
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        if self._ui_flash_overlay.isVisible():
+            self._update_interface_flash_overlay()
+
     def _build_main_area(self) -> QHBoxLayout:
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -308,6 +506,7 @@ class WebcamPage(QWidget):
 
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()
+        self._preview_panel = panel
         panel.setStyleSheet("background: #000000; border-left: 1px solid #1e293b; border-bottom: 1px solid #1e293b;")
 
         stack = QWidget()
@@ -350,29 +549,14 @@ class WebcamPage(QWidget):
         sidebar.setFixedWidth(320)
         sidebar.setStyleSheet("background: #0f172a;")
 
-        back_button = QPushButton("Back to Menu")
+        back_button = QPushButton(_webcam_text(self._language, "back_to_menu"))
         back_button.setCursor(Qt.CursorShape.PointingHandCursor)
         back_button.clicked.connect(self.back_requested.emit)
-        back_button.setStyleSheet(
-            """
-            QPushButton {
-                background: #111827;
-                color: #e2e8f0;
-                border: 1px solid #1e293b;
-                border-radius: 12px;
-                padding: 10px 14px;
-                font-size: 13px;
-                font-weight: 700;
-            }
-            QPushButton:hover {
-                border-color: #334155;
-            }
-            """
-        )
+        back_button.setStyleSheet(self._sidebar_button_style())
 
-        header_title = QLabel("Camera Settings")
+        header_title = QLabel(_webcam_text(self._language, "camera_settings"))
         header_title.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
-        header_subtitle = QLabel("Configure device and quality")
+        header_subtitle = QLabel(_webcam_text(self._language, "configure_device"))
         header_subtitle.setStyleSheet("color: #64748b; font-size: 12px;")
 
         layout = QVBoxLayout()
@@ -382,27 +566,17 @@ class WebcamPage(QWidget):
         layout.addWidget(header_title)
         layout.addWidget(header_subtitle)
         layout.addWidget(self._build_video_device_group())
-        layout.addWidget(self._build_select_group("Resolution", ["1920 x 1080 (16:9)", "1280 x 720 (16:9)", "640 x 480 (4:3)"]))
-        layout.addWidget(self._build_select_group("Frame Rate", ["60 FPS", "30 FPS", "24 FPS"]))
-        layout.addWidget(self._build_select_group("Microphone", ["Default - System Mic", "Yeti Stereo Microphone", "Webcam Internal Mic", "None (Mute)"]))
+        layout.addWidget(
+            self._build_select_group(
+                _webcam_text(self._language, "resolution"),
+                ["1920 x 1080 (16:9)", "1280 x 720 (16:9)", "640 x 480 (4:3)"],
+            )
+        )
+        layout.addWidget(self._build_select_group(_webcam_text(self._language, "frame_rate"), ["60 FPS", "30 FPS", "24 FPS"]))
 
-        vu_meter = QFrame()
-        vu_meter.setStyleSheet("background: #1e293b; border-radius: 7px;")
-        vu_layout = QHBoxLayout()
-        vu_layout.setContentsMargins(3, 3, 3, 3)
-        vu_layout.setSpacing(3)
-        for width, color in ((70, "#22c55e"), (52, "#22c55e"), (110, "#334155")):
-            bar = QFrame()
-            bar.setFixedHeight(8)
-            bar.setFixedWidth(width)
-            bar.setStyleSheet(f"background: {color}; border-radius: 4px;")
-            vu_layout.addWidget(bar)
-        vu_meter.setLayout(vu_layout)
-        layout.addWidget(vu_meter)
-
-        storage_title = QLabel("Save Path")
+        storage_title = QLabel(_webcam_text(self._language, "save_path"))
         storage_title.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 700; text-transform: uppercase;")
-        browse_button = QPushButton("Browse")
+        browse_button = QPushButton(_webcam_text(self._language, "browse"))
         browse_button.setCursor(Qt.CursorShape.PointingHandCursor)
         browse_button.clicked.connect(self.browse_save_path_requested.emit)
         browse_button.setFixedWidth(76)
@@ -441,7 +615,7 @@ class WebcamPage(QWidget):
         footer.setFixedHeight(104)
         footer.setStyleSheet("background: #020617; border-top: 1px solid #1e293b;")
 
-        recent_title = QLabel("Recent Capture")
+        recent_title = QLabel(_webcam_text(self._language, "recent_capture"))
         recent_title.setStyleSheet("color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase;")
 
         recent_text_layout = QVBoxLayout()
@@ -467,28 +641,23 @@ class WebcamPage(QWidget):
         right_layout = QHBoxLayout()
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(12)
-        for label in ("Flash", "Grid", "Settings"):
-            button = QPushButton(label)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setFixedHeight(38)
-            button.setStyleSheet(
-                """
-                QPushButton {
-                    background: transparent;
-                    color: #94a3b8;
-                    border: 1px solid #1e293b;
-                    border-radius: 10px;
-                    padding: 0 14px;
-                    font-size: 12px;
-                    font-weight: 700;
-                }
-                QPushButton:hover {
-                    color: white;
-                    border-color: #334155;
-                }
-                """
-            )
-            right_layout.addWidget(button)
+
+        self._flash_button = QPushButton(_webcam_text(self._language, "flash"))
+        self._flash_button.setCheckable(True)
+        self._flash_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._flash_button.setFixedHeight(38)
+        self._flash_button.toggled.connect(self.toggle_interface_flash)
+        self._flash_button.setStyleSheet(self._footer_toggle_button_style())
+
+        self._grid_button = QPushButton(_webcam_text(self._language, "grid"))
+        self._grid_button.setCheckable(True)
+        self._grid_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._grid_button.setFixedHeight(38)
+        self._grid_button.clicked.connect(self.toggle_grid)
+        self._grid_button.setStyleSheet(self._footer_toggle_button_style())
+
+        right_layout.addWidget(self._flash_button)
+        right_layout.addWidget(self._grid_button)
 
         left_panel = QWidget()
         left_panel.setLayout(recent_layout)
@@ -535,7 +704,7 @@ class WebcamPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        text_label = QLabel("Video Device")
+        text_label = QLabel(_webcam_text(self._language, "video_device"))
         text_label.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 700; text-transform: uppercase;")
 
         self._video_device_combo = QComboBox()
@@ -547,6 +716,48 @@ class WebcamPage(QWidget):
         wrapper.setLayout(layout)
         self._sync_video_device_combo()
         return wrapper
+
+    def _toggle_language(self) -> None:
+        self.language_changed.emit("ko" if self._language == "en" else "en")
+
+    def _sidebar_button_style(self, compact: bool = False) -> str:
+        padding = "10px 0" if compact else "10px 14px"
+        return (
+            "QPushButton {"
+            "background: #111827;"
+            "color: #e2e8f0;"
+            "border: 1px solid #1e293b;"
+            "border-radius: 12px;"
+            f"padding: {padding};"
+            "font-size: 13px;"
+            "font-weight: 700;"
+            "}"
+            "QPushButton:hover {"
+            "border-color: #334155;"
+            "}"
+        )
+
+    def _footer_toggle_button_style(self) -> str:
+        return (
+            "QPushButton {"
+            "background: transparent;"
+            "color: #94a3b8;"
+            "border: 1px solid #1e293b;"
+            "border-radius: 10px;"
+            "padding: 0 14px;"
+            "font-size: 12px;"
+            "font-weight: 700;"
+            "}"
+            "QPushButton:hover {"
+            "color: white;"
+            "border-color: #334155;"
+            "}"
+            "QPushButton:checked {"
+            "background: #1e293b;"
+            "color: white;"
+            "border-color: #475569;"
+            "}"
+        )
 
     def _build_capture_button(
         self,
@@ -656,10 +867,7 @@ class WebcamPage(QWidget):
         )
 
     def _on_record_button_clicked(self) -> None:
-        if self._recording_state in (IDLE, PAUSED):
-            self.start_or_resume_recording()
-        elif self._recording_state == RECORDING:
-            self.stop_recording()
+        self.toggle_recording()
 
     def _on_video_device_changed(self, _combo_index: int) -> None:
         if self._is_populating_video_devices or self._video_device_combo is None:
@@ -674,7 +882,7 @@ class WebcamPage(QWidget):
             return
 
         if self._recording_state != IDLE:
-            self.set_status("Stop recording before switching cameras.")
+            self.set_status(_webcam_text(self._language, "stop_before_switch"))
             self._sync_video_device_combo()
             return
 
@@ -682,10 +890,10 @@ class WebcamPage(QWidget):
         if not self._open_camera(selected_index):
             self._camera_index = previous_index
             self._sync_video_device_combo()
-            self.set_status(f"Unable to open camera device {selected_index}.")
+            self.set_status(_webcam_text(self._language, "unable_open_camera_device", index=selected_index))
             return
 
-        self.set_status(f"Preview mode: camera {selected_index}")
+        self.set_status(_webcam_text(self._language, "preview_mode_camera", index=selected_index))
 
     def _poll_frame(self) -> None:
         if self._camera_capture is None or self._cv2 is None:
@@ -693,7 +901,7 @@ class WebcamPage(QWidget):
 
         ok, frame_bgr = self._camera_capture.read()
         if not ok or frame_bgr is None:
-            self.set_status("Failed to read a frame from the camera.")
+            self.set_status(_webcam_text(self._language, "failed_read_frame"))
             self._release_camera()
             return
 
@@ -725,7 +933,7 @@ class WebcamPage(QWidget):
             output_path = self._pending_recording_path
             self._pending_recording_path = None
             self.set_recording_state(RECORDING)
-            self.set_status(f"Recording to {output_path}")
+            self.set_status(_webcam_text(self._language, "recording_to", path=output_path))
 
         if self._recording_state == RECORDING and self._recorder is not None:
             self._recorder.write(frame_bgr)
@@ -807,11 +1015,11 @@ class WebcamPage(QWidget):
         self._video_device_combo.clear()
 
         if not self._available_camera_indices:
-            self._video_device_combo.addItem("No camera detected", -1)
+            self._video_device_combo.addItem(_webcam_text(self._language, "no_camera_detected"), -1)
             self._video_device_combo.setEnabled(False)
         else:
             for device_index in self._available_camera_indices:
-                self._video_device_combo.addItem(f"Camera {device_index}", device_index)
+                self._video_device_combo.addItem(_webcam_text(self._language, "camera_label", index=device_index), device_index)
             self._video_device_combo.setEnabled(True)
 
             selected_position = self._video_device_combo.findData(self._camera_index)
@@ -824,7 +1032,7 @@ class WebcamPage(QWidget):
     def _handle_saved_recording(self, saved_path: Path) -> None:
         self.set_recent_capture(saved_path.name)
         self.set_recording_state(IDLE)
-        self.set_status(f"Saved recording to {saved_path}")
+        self.set_status(_webcam_text(self._language, "saved_recording", path=saved_path))
         self.recording_saved.emit(str(saved_path))
 
     def _build_recording_path(self) -> Path:
