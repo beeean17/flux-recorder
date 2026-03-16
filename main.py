@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 
 from core.app_mode import DASHBOARD_MODE
 from ui.main_window import MainWindow
+from ui.theme import apply_dark_theme
 
 
 def _resource_root() -> Path:
@@ -47,6 +48,7 @@ def _load_app_icon() -> QIcon:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    apply_dark_theme(app)
     _apply_app_font(app)
     app_icon = _load_app_icon()
     if not app_icon.isNull():

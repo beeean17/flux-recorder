@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 from core.app_mode import AppMode, CONVERT_MODE, DASHBOARD_MODE, SCREEN_MODE, WEBCAM_MODE
 from core.conversion_service import ConversionRequest, convert
 from core.recording_state import IDLE, PAUSED
+from ui.theme import MAIN_WINDOW_BACKGROUNDS
 from ui.widgets.converter_panel import ConverterPanel, _converter_text
 from ui.widgets.dashboard_page import ActivityItem, DashboardPage
 from ui.widgets.screen_capture_panel import ScreenCapturePanel, _screen_text
@@ -141,7 +142,7 @@ class MainWindow(QMainWindow):
         self._switch_mode(mode)
 
     def _setup_dashboard_mode(self) -> None:
-        self.setStyleSheet("")
+        self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['dashboard']}; }}")
         self._dashboard_page = DashboardPage(language=self._dashboard_language)
         self._dashboard_page.webcam_requested.connect(lambda: self._switch_mode(WEBCAM_MODE))
         self._dashboard_page.screen_requested.connect(lambda: self._switch_mode(SCREEN_MODE))
@@ -151,7 +152,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._dashboard_page)
 
     def _setup_webcam_mode(self) -> None:
-        self.setStyleSheet("")
+        self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['webcam']}; }}")
         self._webcam_page = WebcamPage(language=self._dashboard_language)
         self._webcam_page.set_save_path(self._webcam_output_directory)
         self.setCentralWidget(self._webcam_page)
@@ -163,7 +164,7 @@ class MainWindow(QMainWindow):
         self._webcam_page.start_preview()
 
     def _setup_screen_mode(self) -> None:
-        self.setStyleSheet("QMainWindow { background: #110f1a; }")
+        self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['screen']}; }}")
         self._screen_capture_panel = ScreenCapturePanel(language=self._dashboard_language)
         self._screen_capture_panel.set_output_path(self._screen_output_directory)
         self._screen_capture_panel.back_requested.connect(self.on_back_to_menu_requested)
@@ -174,7 +175,7 @@ class MainWindow(QMainWindow):
         self._screen_capture_panel.start_preview()
 
     def _setup_convert_mode(self) -> None:
-        self.setStyleSheet("QMainWindow { background: #0d1511; }")
+        self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['convert']}; }}")
         self._converter_panel = ConverterPanel(language=self._dashboard_language)
         self._converter_panel.set_output_path(self._converter_output_directory)
         self._converter_panel.back_requested.connect(self.on_back_to_menu_requested)

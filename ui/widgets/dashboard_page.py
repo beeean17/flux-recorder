@@ -76,6 +76,7 @@ class FeatureCard(QFrame):
 
         badge_label = QLabel()
         badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge_label.setStyleSheet("background: transparent;")
         badge_label.setPixmap(self._build_icon(icon_kind, accent_color))
 
         badge_layout = QVBoxLayout()
@@ -85,12 +86,16 @@ class FeatureCard(QFrame):
 
         self._title_label = QLabel(title)
         self._title_label.setWordWrap(True)
-        self._title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 24px; font-weight: 800;")
+        self._title_label.setStyleSheet(
+            f"background: transparent; color: {TEXT_PRIMARY}; font-size: 24px; font-weight: 800;"
+        )
 
         self._description_label = QLabel(description)
         self._description_label.setWordWrap(True)
         self._description_label.setTextFormat(Qt.TextFormat.RichText)
-        self._description_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
+        self._description_label.setStyleSheet(
+            f"background: transparent; color: {TEXT_SECONDARY}; font-size: 14px;"
+        )
 
         self._action_button = QPushButton(action_text)
         self._action_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -183,6 +188,8 @@ class DashboardPage(QWidget):
     def __init__(self, language: str = "en") -> None:
         super().__init__()
         self.setObjectName("dashboard_page")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAutoFillBackground(True)
         self._language = language if language in ("en", "ko") else "en"
 
         root_layout = QVBoxLayout()
@@ -300,11 +307,16 @@ class DashboardPage(QWidget):
 
     def _build_content(self) -> QWidget:
         scroll_area = QScrollArea()
+        scroll_area.setObjectName("dashboardScrollArea")
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.viewport().setObjectName("dashboardViewport")
+        scroll_area.viewport().setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        scroll_area.viewport().setAutoFillBackground(True)
         scroll_area.setStyleSheet(
             f"""
-            QScrollArea {{
+            QScrollArea#dashboardScrollArea,
+            QWidget#dashboardViewport {{
                 background: {BASE};
                 border: none;
             }}
@@ -322,11 +334,17 @@ class DashboardPage(QWidget):
         )
 
         container = QWidget()
+        container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        container.setAutoFillBackground(True)
+        container.setStyleSheet(f"background: {BASE};")
         container_layout = QVBoxLayout()
         container_layout.setContentsMargins(34, 28, 34, 28)
         container_layout.setSpacing(0)
 
         shell = QWidget()
+        shell.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        shell.setAutoFillBackground(True)
+        shell.setStyleSheet(f"background: {BASE};")
         shell.setMaximumWidth(1360)
         shell_layout = QVBoxLayout()
         shell_layout.setContentsMargins(0, 0, 0, 0)
