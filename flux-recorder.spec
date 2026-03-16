@@ -58,20 +58,20 @@ exe = EXE(
 )
 
 if sys.platform == "darwin":
-    app = BUNDLE(
-        exe,
-        name="flux-recorder.app",
-        icon=bundle_icon,
-        bundle_identifier=None,
-    )
     coll = COLLECT(
-        app,
+        exe,
         a.binaries,
         a.datas,
         strip=False,
         upx=True,
         upx_exclude=[],
         name="flux-recorder",
+    )
+    app = BUNDLE(
+        coll,
+        name="flux-recorder.app",
+        icon=bundle_icon,
+        bundle_identifier=None,
     )
 else:
     coll = COLLECT(
