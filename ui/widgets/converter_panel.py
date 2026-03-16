@@ -7,6 +7,7 @@ from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -20,6 +21,7 @@ from PyQt6.QtWidgets import (
 from core.conversion_service import ConversionRequest
 from core.image_converter import IMAGE_OUTPUT_FORMATS
 from core.video_converter import VIDEO_OUTPUT_FORMATS
+from ui.widgets.image_crop_dialog import ImageCropDialog
 
 
 BASE = "#0d1511"
@@ -75,6 +77,12 @@ CONVERTER_TRANSLATIONS: dict[str, dict[str, str]] = {
         "source_title_image": "Image Source",
         "choose_video": "Choose Video",
         "choose_image": "Choose Image",
+        "crop_image": "Crop",
+        "edit_crop": "Edit Crop",
+        "crop_not_selected": "No crop selected. The full image will be exported.",
+        "crop_selected": "Crop area: {width} x {height} at ({x}, {y})",
+        "crop_unavailable": "Choose an image before selecting a crop area.",
+        "crop_load_failed": "Unable to open the selected image for cropping.",
         "convert_video": "Convert Video",
         "convert_image": "Convert Image",
         "convert_generic": "Convert",
@@ -166,6 +174,7 @@ class ConverterPanel(QWidget):
         self._conversion_mode = "video"
         self._video_source_path: Path | None = None
         self._image_source_path: Path | None = None
+        self._image_crop_rect: tuple[int, int, int, int] | None = None
         self._output_directory = Path.home()
         self._conversion_enabled = True
 
@@ -237,6 +246,15 @@ class ConverterPanel(QWidget):
         self._source_button.clicked.connect(self._emit_browse_source_requested)
         self._source_button.setStyleSheet(self._accent_button_style())
 
+        self._crop_button = QPushButton()
+        self._crop_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._crop_button.clicked.connect(self._open_image_crop_dialog)
+        self._crop_button.setStyleSheet(self._sidebar_button_style())
+
+        self._image_crop_label = QLabel()
+        self._image_crop_label.setWordWrap(True)
+        self._image_crop_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
+
         self._options_title_label = QLabel()
         self._options_title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 16px; font-weight: 700;")
 
@@ -289,6 +307,7 @@ class ConverterPanel(QWidget):
         for button in self._mode_tabs.buttons():
             button.setEnabled(enabled)
         self._source_button.setEnabled(enabled)
+        self._crop_button.setEnabled(enabled)
         self._video_format_combo.setEnabled(enabled)
         self._image_format_combo.setEnabled(enabled)
         self._image_width_input.setEnabled(enabled)
@@ -308,9 +327,16 @@ class ConverterPanel(QWidget):
         if mode == "video":
             self._video_source_path = path
         else:
+            if self._image_source_path != path:
+                self._image_crop_rect = None
             self._image_source_path = path
         mode_label = _converter_text(self._language, "video_tab") if mode == "video" else _converter_text(self._language, "image_tab")
         self.set_status(_converter_text(self._language, "selected_source", mode=mode_label, name=path.name))
+        self._sync_mode_ui()
+        self._sync_action_state()
+
+    def set_image_crop_rect(self, crop_rect: tuple[int, int, int, int] | None) -> None:
+        self._image_crop_rect = crop_rect
         self._sync_mode_ui()
         self._sync_action_state()
 
@@ -362,6 +388,7 @@ class ConverterPanel(QWidget):
             output_directory=self._output_directory,
             target_format=self._current_target_format(),
             image_size=image_size,
+            image_crop=self._image_crop_rect if self._conversion_mode == "image" else None,
         )
         self.convert_requested.emit(request)
 
@@ -568,13 +595,21 @@ class ConverterPanel(QWidget):
             """
         )
 
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 0)
+        button_row.setSpacing(10)
+        button_row.addWidget(self._source_button, 0, Qt.AlignmentFlag.AlignLeft)
+        button_row.addWidget(self._crop_button, 0, Qt.AlignmentFlag.AlignLeft)
+        button_row.addStretch(1)
+
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
         layout.addWidget(self._source_title_label)
         layout.addWidget(self._source_name_label)
         layout.addWidget(self._source_path_label)
-        layout.addWidget(self._source_button, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self._image_crop_label)
+        layout.addLayout(button_row)
         card.setLayout(layout)
         return card
 
@@ -636,6 +671,29 @@ class ConverterPanel(QWidget):
 
         wrapper.setLayout(layout)
         return wrapper
+
+    def _open_image_crop_dialog(self) -> None:
+        if self._image_source_path is None:
+            self.set_status(_converter_text(self._language, "crop_unavailable"))
+            return
+
+        dialog = ImageCropDialog(
+            self._image_source_path,
+            crop_rect=self._image_crop_rect,
+            language=self._language,
+            parent=self,
+        )
+        if not dialog.is_ready():
+            self.set_status(_converter_text(self._language, "crop_load_failed"))
+            return
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self._image_crop_rect = dialog.selected_crop_rect()
+        self._sync_mode_ui()
+        self._sync_action_state()
+        self.set_status(self._image_crop_summary())
 
     def _toggle_language(self) -> None:
         self.language_changed.emit("ko" if self._language == "en" else "en")
@@ -784,6 +842,11 @@ class ConverterPanel(QWidget):
             if is_video
             else _converter_text(self._language, "choose_image")
         )
+        self._crop_button.setText(
+            _converter_text(self._language, "edit_crop")
+            if self._image_crop_rect is not None
+            else _converter_text(self._language, "crop_image")
+        )
         self._convert_button.setText(
             _converter_text(self._language, "convert_video")
             if is_video
@@ -801,6 +864,8 @@ class ConverterPanel(QWidget):
         )
         self._video_options_widget.setVisible(is_video)
         self._image_options_widget.setVisible(not is_video)
+        self._crop_button.setVisible(not is_video)
+        self._image_crop_label.setVisible(not is_video)
 
         if source_path is None:
             self._source_name_label.setText(_converter_text(self._language, "source_none"))
@@ -809,13 +874,17 @@ class ConverterPanel(QWidget):
                 if is_video
                 else _converter_text(self._language, "source_path_image")
             )
+            self._image_crop_label.setText(_converter_text(self._language, "crop_not_selected"))
         else:
             self._source_name_label.setText(source_path.name)
             self._source_path_label.setText(str(source_path))
+            self._image_crop_label.setText(self._image_crop_summary())
 
     def _sync_action_state(self) -> None:
         can_convert = self._conversion_enabled and self._current_source_path() is not None
         self._convert_button.setEnabled(can_convert)
+        can_crop = self._conversion_enabled and self._conversion_mode == "image" and self._image_source_path is not None
+        self._crop_button.setEnabled(can_crop)
 
     def _current_source_path(self) -> Path | None:
         if self._conversion_mode == "video":
@@ -856,6 +925,20 @@ class ConverterPanel(QWidget):
         if width_text and height_text:
             return f"{width_text} x {height_text}"
         return _converter_text(self._language, "image_size_missing")
+
+    def _image_crop_summary(self) -> str:
+        if self._image_crop_rect is None:
+            return _converter_text(self._language, "crop_not_selected")
+
+        left, top, width, height = self._image_crop_rect
+        return _converter_text(
+            self._language,
+            "crop_selected",
+            x=left,
+            y=top,
+            width=width,
+            height=height,
+        )
 
     def _combo_style(self) -> str:
         return (

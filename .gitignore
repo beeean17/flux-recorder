@@ -32,4 +32,6 @@ build/*
 Thumbs.db
 
 *.pdf
-!hw1_video_recorder.pdf
+hw1_video_recorder.pdf
+.flux-recorder/
+*.ico

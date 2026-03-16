@@ -8,6 +8,7 @@ It currently includes:
 - Webcam recording
 - Screen recording
 - Image and video conversion
+- Image crop, resize, and format export controls in the converter
 
 ## App Screenshots
 
@@ -99,7 +100,7 @@ Notes:
 - `PyQt6` for the desktop UI
 - `OpenCV` for webcam capture, video writing, and core media handling
 - `NumPy` for frame data handling
-- `Pillow` for some image format conversion tasks
+- `Pillow` for image crop application, resizing, and format conversion tasks
 
 ## Where OpenCV Is Used In Code
 
@@ -209,10 +210,38 @@ In short, OpenCV is used for:
 - video conversion
 - snapshot file output
 
+## Image Crop Workflow
+
+The converter now also supports image crop selection before export.
+
+- `ui/widgets/converter_panel.py`
+  - Opens the image crop dialog from the image converter flow
+  - Keeps the selected crop rectangle in the conversion request together with the output size and format
+
+- `ui/widgets/image_crop_dialog.py`
+  - Shows the selected image in a crop preview dialog
+  - Lets the user create, move, and resize the crop box from the corner handles
+  - Supports fixed aspect ratio presets: `1:1`, `4:5`, `16:9`, `5:4`, and `9:16`
+  - Displays both the preview size and the selected crop size in pixels
+
+- `core/image_converter.py`
+  - Applies the crop rectangle first
+  - Resizes the cropped image if width and height are provided
+  - Saves the final output in the requested image format
+
+```python
+if image_crop is not None:
+    image = _apply_crop(image, image_crop)
+
+if image_size is not None:
+    image = image.resize((width, height), Image.Resampling.LANCZOS)
+```
+
 Note:
 
-- `core/image_converter.py` mainly uses `Pillow` for image export and resizing
+- `core/image_converter.py` uses `Pillow` for image crop, export, and resizing
 - The main OpenCV-heavy paths are webcam capture, screen recording, and video conversion
+- The crop UI is part of the converter workflow, but the final image crop/export path is currently handled by `PyQt6` + `Pillow`, not OpenCV
 
 ## Window Capture Notes
 

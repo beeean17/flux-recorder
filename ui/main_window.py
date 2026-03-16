@@ -548,7 +548,9 @@ class MainWindow(QMainWindow):
                 "image_source": self._converter_panel._image_source_path,
                 "video_format": self._converter_panel._video_format_combo.currentText(),
                 "image_format": self._converter_panel._image_format_combo.currentText(),
-                "image_size": self._converter_panel._image_size_combo.currentText(),
+                "image_width": self._converter_panel._image_width_input.text(),
+                "image_height": self._converter_panel._image_height_input.text(),
+                "image_crop": self._converter_panel._image_crop_rect,
                 "recent_result": recent_result,
             }
 
@@ -597,9 +599,12 @@ class MainWindow(QMainWindow):
             image_format = state.get("image_format")
             if isinstance(image_format, str):
                 self._converter_panel._image_format_combo.setCurrentText(image_format)
-            image_size = state.get("image_size")
-            if isinstance(image_size, str):
-                self._converter_panel._image_size_combo.setCurrentText(image_size)
+            image_width = state.get("image_width")
+            if isinstance(image_width, str):
+                self._converter_panel._image_width_input.setText(image_width)
+            image_height = state.get("image_height")
+            if isinstance(image_height, str):
+                self._converter_panel._image_height_input.setText(image_height)
 
             video_source = state.get("video_source")
             if isinstance(video_source, Path):
@@ -607,6 +612,13 @@ class MainWindow(QMainWindow):
             image_source = state.get("image_source")
             if isinstance(image_source, Path):
                 self._converter_panel.set_selected_source("image", image_source)
+            image_crop = state.get("image_crop")
+            if (
+                isinstance(image_crop, tuple)
+                and len(image_crop) == 4
+                and all(isinstance(value, int) for value in image_crop)
+            ):
+                self._converter_panel.set_image_crop_rect(image_crop)
 
             conversion_mode = state.get("conversion_mode")
             if isinstance(conversion_mode, str):

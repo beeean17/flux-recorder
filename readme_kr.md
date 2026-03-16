@@ -8,6 +8,7 @@ English version: [README.md](README.md)
 - 웹캠 녹화
 - 화면 녹화
 - 이미지 및 비디오 변환
+- 이미지 crop, 리사이즈, 형식 변환 제어
 
 ## 앱 스크린샷
 
@@ -99,7 +100,7 @@ bash build/build_mac.sh
 - 데스크톱 UI: `PyQt6`
 - 웹캠 캡처, 비디오 저장, 핵심 미디어 처리: `OpenCV`
 - 프레임 데이터 처리: `NumPy`
-- 일부 이미지 변환 작업: `Pillow`
+- 이미지 crop 적용, 리사이즈, 형식 변환 작업: `Pillow`
 
 ## OpenCV가 코드에서 사용된 위치
 
@@ -209,10 +210,38 @@ if not self._cv2.imwrite(str(output_path), frame_bgr):
 - 비디오 변환
 - 스냅샷 파일 저장
 
+## 이미지 Crop 워크플로우
+
+변환기에서는 이미지 내보내기 전에 crop 영역을 먼저 선택할 수 있습니다.
+
+- `ui/widgets/converter_panel.py`
+  - 이미지 변환 흐름에서 crop 다이얼로그를 엽니다.
+  - 선택한 crop 영역을 출력 크기, 형식과 함께 변환 요청에 담아 전달합니다.
+
+- `ui/widgets/image_crop_dialog.py`
+  - 선택한 이미지를 crop 미리보기 다이얼로그로 보여줍니다.
+  - 새 crop 박스를 만들고, 박스를 이동하고, 모서리 핸들로 크기를 조절할 수 있습니다.
+  - `1:1`, `4:5`, `16:9`, `5:4`, `9:16` 고정 비율을 지원합니다.
+  - 미리보기 크기와 선택한 crop 영역 크기를 픽셀 단위로 표시합니다.
+
+- `core/image_converter.py`
+  - 먼저 crop 영역을 적용합니다.
+  - 너비와 높이가 지정되어 있으면 crop 결과를 다시 리사이즈합니다.
+  - 마지막으로 선택한 이미지 형식으로 저장합니다.
+
+```python
+if image_crop is not None:
+    image = _apply_crop(image, image_crop)
+
+if image_size is not None:
+    image = image.resize((width, height), Image.Resampling.LANCZOS)
+```
+
 참고:
 
-- `core/image_converter.py`는 주로 `Pillow`를 사용해 이미지 내보내기와 리사이징을 처리합니다.
+- `core/image_converter.py`는 `Pillow`를 사용해 이미지 crop, 내보내기, 리사이징을 처리합니다.
 - OpenCV 사용 비중이 큰 경로는 웹캠 캡처, 화면 녹화, 비디오 변환입니다.
+- crop UI는 변환기 워크플로우에 포함되어 있지만, 최종 이미지 crop/export 경로는 현재 OpenCV가 아니라 `PyQt6` + `Pillow`로 처리합니다.
 
 ## 윈도우 캡처 관련 참고
 

@@ -9,6 +9,7 @@ from core.video_converter import VIDEO_INPUT_EXTENSIONS, VIDEO_OUTPUT_FORMATS, c
 
 
 SUPPORTED_FORMATS: tuple[str, ...] = VIDEO_OUTPUT_FORMATS + IMAGE_OUTPUT_FORMATS
+ImageCropRect = tuple[int, int, int, int]
 
 
 @dataclass(slots=True, frozen=True)
@@ -18,6 +19,7 @@ class ConversionRequest:
     output_directory: Path
     target_format: str
     image_size: tuple[int, int] | None = None
+    image_crop: ImageCropRect | None = None
 
 
 def convert(
@@ -39,7 +41,13 @@ def convert(
     if mode == "image":
         target_format = _normalize_extension(request.target_format, IMAGE_OUTPUT_FORMATS)
         output_path = build_output_path(source, target_format, output_directory)
-        return convert_image(source, output_path, request.image_size, progress_callback=progress_callback)
+        return convert_image(
+            source,
+            output_path,
+            request.image_size,
+            request.image_crop,
+            progress_callback=progress_callback,
+        )
 
     raise RuntimeError(f"Unsupported conversion mode: {request.mode}")
 
