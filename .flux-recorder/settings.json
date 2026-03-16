@@ -1,9 +1,0 @@
-{
-  "language": "ko",
-  "webcam_output_directory": "/Users/yoon",
-  "screen_output_directory": "/Users/yoon/Desktop/sampic",
-  "converter_output_directory": "/Users/yoon/Pictures/Capture",
-  "converter_source_directory": "/Users/yoon/Movies",
-  "converter_video_source": "/Users/yoon/Movies/recording_20260315_223214.avi",
-  "converter_image_source": "/tmp/sample.png"
-}
