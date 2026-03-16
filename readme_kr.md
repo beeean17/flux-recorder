@@ -16,18 +16,43 @@ English version: [README.md](README.md)
 
 권장 파일명:
 
-- `images/dashboard.png`
-- `images/webcam-recorder.png`
-- `images/screen-recorder.png`
-- `images/file-converter.png`
+- `images/dashboard-en.png`
+- `images/dashboard-ko.png`
+- `images/webcam-recorder-default.png`
+- `images/webcam-recorder-flash.png`
+- `images/webcam-recorder-grid.png`
+- `images/screen-recorder-overview.png`
+- `images/screen-recorder-fullscreen.png`
+- `images/screen-recorder-window.png`
+- `images/screen-recorder-custom.png`
+- `images/screen-recorder-recording.png`
+- `images/file-converter-video.png`
+- `images/file-converter-image.png`
+- `images/file-converter-crop.png`
 
 권장 마크다운:
 
 ```md
-![Dashboard](images/dashboard.png)
-![Webcam Recorder](images/webcam-recorder.png)
-![Screen Recorder](images/screen-recorder.png)
-![File Converter](images/file-converter.png)
+### Dashboard
+![Dashboard English](images/dashboard-en.png)
+![Dashboard Korean](images/dashboard-ko.png)
+
+### Webcam Recorder
+![Webcam Recorder Default](images/webcam-recorder-default.png)
+![Webcam Recorder Flash Capture](images/webcam-recorder-flash.png)
+![Webcam Recorder Grid Overlay](images/webcam-recorder-grid.png)
+
+### Screen Recorder
+![Screen Recorder Overview](images/screen-recorder-overview.png)
+![Screen Recorder Full Screen](images/screen-recorder-fullscreen.png)
+![Screen Recorder Window](images/screen-recorder-window.png)
+![Screen Recorder Custom Region](images/screen-recorder-custom.png)
+![Screen Recorder Recording State](images/screen-recorder-recording.png)
+
+### Converter
+![Video Converter](images/file-converter-video.png)
+![Image Converter](images/file-converter-image.png)
+![Image Crop Dialog](images/file-converter-crop.png)
 ```
 
 ## 데모 영상
