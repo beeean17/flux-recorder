@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from core.app_mode import AppMode, CONVERT_MODE, DASHBOARD_MODE, SCREEN_MODE, WEBCAM_MODE
 from core.conversion_service import ConversionRequest, convert
+from core.local_settings import AppSettings, load_app_settings, save_app_settings
 from core.recording_state import IDLE, PAUSED
 from ui.theme import MAIN_WINDOW_BACKGROUNDS
 from ui.widgets.converter_panel import ConverterPanel, _converter_text
@@ -124,6 +125,7 @@ class ConverterThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self, mode: AppMode) -> None:
         super().__init__()
+        self._app_settings = load_app_settings()
         self._mode = mode
         self._webcam_page: WebcamPage | None = None
         self._converter_panel: ConverterPanel | None = None
@@ -131,11 +133,17 @@ class MainWindow(QMainWindow):
         self._dashboard_page: DashboardPage | None = None
         self._converter_thread: ConverterThread | None = None
         self._recent_activity: list[ActivityItem] = []
-        self._dashboard_language = "en"
-        self._webcam_output_directory = self._default_video_directory()
-        self._screen_output_directory = self._default_video_directory()
-        self._converter_output_directory = self._default_media_directory()
-        self._converter_source_directory = self._default_media_directory()
+        self._dashboard_language = self._app_settings.language
+        self._webcam_output_directory = self._app_settings.webcam_output_directory or self._default_video_directory()
+        self._screen_output_directory = self._app_settings.screen_output_directory or self._default_video_directory()
+        self._converter_output_directory = (
+            self._app_settings.converter_output_directory or self._default_media_directory()
+        )
+        self._converter_source_directory = (
+            self._app_settings.converter_source_directory or self._default_media_directory()
+        )
+        self._converter_video_source = self._app_settings.converter_video_source
+        self._converter_image_source = self._app_settings.converter_image_source
 
         self.setWindowTitle(self._window_title(mode))
         self.resize(1480, 980)
@@ -178,6 +186,10 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['convert']}; }}")
         self._converter_panel = ConverterPanel(language=self._dashboard_language)
         self._converter_panel.set_output_path(self._converter_output_directory)
+        if self._converter_video_source is not None:
+            self._converter_panel.set_selected_source("video", self._converter_video_source)
+        if self._converter_image_source is not None:
+            self._converter_panel.set_selected_source("image", self._converter_image_source)
         self._converter_panel.back_requested.connect(self.on_back_to_menu_requested)
         self._converter_panel.browse_output_requested.connect(self.on_browse_converter_output_requested)
         self._converter_panel.browse_source_requested.connect(self.on_browse_converter_source_requested)
@@ -210,6 +222,7 @@ class MainWindow(QMainWindow):
             return
 
         self._webcam_output_directory = Path(target_directory)
+        self._save_local_settings()
         if self._webcam_page is not None:
             self._webcam_page.set_save_path(self._webcam_output_directory)
             self._webcam_page.set_status(
@@ -238,6 +251,7 @@ class MainWindow(QMainWindow):
             return
 
         self._screen_output_directory = Path(target_directory)
+        self._save_local_settings()
         if self._screen_capture_panel is not None:
             self._screen_capture_panel.set_output_path(self._screen_output_directory)
             self._screen_capture_panel.set_status(
@@ -254,6 +268,7 @@ class MainWindow(QMainWindow):
             return
 
         self._converter_output_directory = Path(target_directory)
+        self._save_local_settings()
         if self._converter_panel is not None:
             self._converter_panel.set_output_path(self._converter_output_directory)
             self._converter_panel.set_status(
@@ -279,6 +294,11 @@ class MainWindow(QMainWindow):
 
         source_path = Path(source_path_str)
         self._converter_source_directory = source_path.parent
+        if mode == "video":
+            self._converter_video_source = source_path
+        else:
+            self._converter_image_source = source_path
+        self._save_local_settings()
         if self._converter_panel is not None:
             self._converter_panel.set_selected_source(mode, source_path)
 
@@ -375,6 +395,7 @@ class MainWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._save_local_settings()
         if self._converter_thread is not None and self._converter_thread.isRunning():
             self._converter_thread.wait()
         if self._webcam_page is not None:
@@ -483,6 +504,7 @@ class MainWindow(QMainWindow):
 
         state = self._snapshot_current_mode_state()
         self._dashboard_language = normalized
+        self._save_local_settings()
 
         if self._mode == DASHBOARD_MODE:
             self.setWindowTitle(self._window_title(self._mode))
@@ -603,3 +625,15 @@ class MainWindow(QMainWindow):
         self._recent_activity = self._recent_activity[:5]
         if self._dashboard_page is not None:
             self._dashboard_page.set_recent_activity(self._recent_activity)
+
+    def _save_local_settings(self) -> None:
+        self._app_settings = AppSettings(
+            language=self._dashboard_language,
+            webcam_output_directory=self._webcam_output_directory,
+            screen_output_directory=self._screen_output_directory,
+            converter_output_directory=self._converter_output_directory,
+            converter_source_directory=self._converter_source_directory,
+            converter_video_source=self._converter_video_source,
+            converter_image_source=self._converter_image_source,
+        )
+        save_app_settings(self._app_settings)

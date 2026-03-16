@@ -110,6 +110,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "capture_target_unavailable": "Capture target is unavailable. Recording stopped.",
         "mode_selected_full": "{mode} selected. The recorder hides itself when capture starts.",
         "mode_selected_other": "{mode} selected. Choose a target before capture.",
+        "window_use_custom_fallback": "Window picking is unavailable on this OS. Use Custom and drag over the app window you want to capture.",
         "frame_rate_set": "Frame rate set to {fps} FPS.",
         "audio_toggle": "{name} {state}. Audio recording is not wired in the OpenCV path yet.",
         "enabled": "enabled",
@@ -129,6 +130,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_window_selected": "No window selected",
         "window_hint": "Click Choose Window, then click the app or window you want to capture.",
         "choose_window": "Choose Window",
+        "use_custom_mode": "Use Custom Mode",
         "window_notice": "Window recording does not support resizing the selected window while recording.",
         "area_summary": "{width} x {height} area",
         "no_area_selected": "No area selected",
@@ -193,6 +195,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "capture_target_unavailable": "캡처 대상이 사용할 수 없어 녹화를 중지했습니다.",
         "mode_selected_full": "{mode} 모드를 선택했습니다. 캡처가 시작되면 녹화기가 자동으로 숨겨집니다.",
         "mode_selected_other": "{mode} 모드를 선택했습니다. 캡처 전에 대상을 먼저 고르세요.",
+        "window_use_custom_fallback": "이 운영체제에서는 창 직접 선택을 지원하지 않습니다. 사용자 지정 모드로 전환한 뒤 캡처할 창 영역을 직접 드래그해 선택하세요.",
         "frame_rate_set": "프레임 속도를 {fps} FPS로 설정했습니다.",
         "audio_toggle": "{name} {state}. 현재 OpenCV 경로에서는 오디오 녹화가 연결되어 있지 않습니다.",
         "enabled": "켜짐",
@@ -212,6 +215,7 @@ SCREEN_CAPTURE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_window_selected": "선택된 창이 없습니다",
         "window_hint": "창 선택을 누른 뒤 캡처할 앱이나 창을 클릭하세요.",
         "choose_window": "창 선택",
+        "use_custom_mode": "사용자 지정 모드 사용",
         "window_notice": "창 녹화는 녹화 중 선택한 창의 크기 변경을 지원하지 않습니다.",
         "area_summary": "{width} x {height} 영역",
         "no_area_selected": "선택된 영역이 없습니다",
@@ -997,7 +1001,7 @@ class ScreenCapturePanel(QWidget):
         self._select_target_button = QPushButton()
         self._select_target_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._select_target_button.setMinimumHeight(44)
-        self._select_target_button.clicked.connect(lambda: self._begin_target_selection())
+        self._select_target_button.clicked.connect(self._on_select_target_button_clicked)
         self._select_target_button.setStyleSheet(self._sidebar_button_style())
 
         self._record_button.clicked.connect(self.start_or_resume_recording)
@@ -1765,8 +1769,25 @@ class ScreenCapturePanel(QWidget):
         mode_label = button.text()
         if self._capture_mode == "full_screen":
             self.set_status(_screen_text(self._language, "mode_selected_full", mode=mode_label))
+        elif self._capture_mode == "window" and system() != "Windows":
+            self.set_status(_screen_text(self._language, "window_use_custom_fallback"))
         else:
             self.set_status(_screen_text(self._language, "mode_selected_other", mode=mode_label))
+
+    def _on_select_target_button_clicked(self) -> None:
+        if self._capture_mode == "window" and system() != "Windows":
+            self._switch_capture_mode("region")
+            self.set_status(_screen_text(self._language, "window_use_custom_fallback"))
+            return
+        self._begin_target_selection()
+
+    def _switch_capture_mode(self, mode_name: str) -> None:
+        for button in self._capture_tabs.buttons():
+            if str(button.property("captureMode")) != mode_name:
+                continue
+            button.setChecked(True)
+            self._on_capture_mode_changed()
+            return
 
     def _on_frame_rate_changed(self) -> None:
         self._restart_preview_timer()
@@ -1926,7 +1947,8 @@ class ScreenCapturePanel(QWidget):
             self.set_status(_screen_text(self._language, "full_screen_mode_note"))
             return
         if self._capture_mode == "window" and system() != "Windows":
-            self.set_status(_screen_text(self._language, "window_windows_only"))
+            self._switch_capture_mode("region")
+            self.set_status(_screen_text(self._language, "window_use_custom_fallback"))
             return
 
         self.set_status(_screen_text(self._language, "hide_and_choose_target"))
@@ -2007,12 +2029,17 @@ class ScreenCapturePanel(QWidget):
         if self._capture_mode == "window":
             target = self._window_target
             self._target_summary_label.setText(target.title if target is not None else _screen_text(self._language, "no_window_selected"))
-            self._target_hint_label.setText(_screen_text(self._language, "window_hint"))
-            self._select_target_button.setText(_screen_text(self._language, "choose_window"))
+            if system() == "Windows":
+                self._target_hint_label.setText(_screen_text(self._language, "window_hint"))
+                self._select_target_button.setText(_screen_text(self._language, "choose_window"))
+                self._window_recording_notice.setText(_screen_text(self._language, "window_notice"))
+                self._window_recording_notice.show()
+            else:
+                self._target_hint_label.setText(_screen_text(self._language, "window_use_custom_fallback"))
+                self._select_target_button.setText(_screen_text(self._language, "use_custom_mode"))
+                self._window_recording_notice.hide()
             self._select_target_button.setEnabled(True)
             self._output_size_value.setText(self._capture_dimensions_text(target.rect if target is not None else None))
-            self._window_recording_notice.setText(_screen_text(self._language, "window_notice"))
-            self._window_recording_notice.show()
             return
 
         target = self._region_target

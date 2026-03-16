@@ -2,10 +2,46 @@
 
 Desktop media toolkit built with `PyQt6` and `OpenCV`.
 
+Korean version: [readme_kr.md](readme_kr.md)
+
 It currently includes:
 - Webcam recording
 - Screen recording
 - Image and video conversion
+
+## App Screenshots
+
+Add captured screenshots to `images/` and replace the placeholders below when the final assets are ready.
+
+Recommended filenames:
+
+- `images/dashboard.png`
+- `images/webcam-recorder.png`
+- `images/screen-recorder.png`
+- `images/file-converter.png`
+
+Suggested markdown:
+
+```md
+![Dashboard](images/dashboard.png)
+![Webcam Recorder](images/webcam-recorder.png)
+![Screen Recorder](images/screen-recorder.png)
+![File Converter](images/file-converter.png)
+```
+
+## Demo Video
+
+Upload a demo video to GitHub, YouTube, or cloud storage and place the final link here.
+
+Recommended filename if you keep a local copy in the repository:
+
+- `videos/flux-recorder-demo.mp4`
+
+Suggested markdown:
+
+```md
+[Watch Demo Video](videos/flux-recorder-demo.mp4)
+```
 
 ## Requirements
 
@@ -64,6 +100,119 @@ Notes:
 - `OpenCV` for webcam capture, video writing, and core media handling
 - `NumPy` for frame data handling
 - `Pillow` for some image format conversion tasks
+
+## Where OpenCV Is Used In Code
+
+The project uses OpenCV directly in the following parts of the codebase:
+
+- `core/camera.py`
+  - Opens webcam devices with `cv2.VideoCapture`
+  - Reads camera FPS with `cv2.CAP_PROP_FPS`
+  - Converts camera frames from `BGR` to `RGB` with `cv2.cvtColor`
+
+```python
+class CameraCapture:
+    def open(self) -> None:
+        self._capture = cv2.VideoCapture(self._device_index)
+
+    @property
+    def fps(self) -> float:
+        fps = float(self._capture.get(cv2.CAP_PROP_FPS))
+        return self._normalize_fps(fps)
+
+def bgr_to_rgb(frame_bgr: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+```
+
+- `core/recorder.py`
+  - Creates video writers with `cv2.VideoWriter`
+  - Selects codec / FourCC values through `cv2.VideoWriter_fourcc`
+  - Writes recorded webcam and screen frames to video files
+
+```python
+def _open_writer(self, output_path: Path, fps: float, size: tuple[int, int]) -> cv2.VideoWriter | None:
+    for fourcc_code in self._fourcc_candidates(output_path.suffix.lower()):
+        writer = cv2.VideoWriter(
+            str(output_path),
+            cv2.VideoWriter_fourcc(*fourcc_code),
+            fps,
+            size,
+        )
+        if writer.isOpened():
+            return writer
+```
+
+- `core/video_converter.py`
+  - Opens source video files with `cv2.VideoCapture`
+  - Reads frame count and FPS metadata
+  - Resizes mismatched frames with `cv2.resize`
+  - Writes converted video with `cv2.VideoWriter`
+  - Tries multiple FourCC candidates depending on output format
+
+```python
+capture = cv2.VideoCapture(str(source))
+fps = float(capture.get(cv2.CAP_PROP_FPS))
+total_frames = max(0, int(capture.get(cv2.CAP_PROP_FRAME_COUNT)))
+
+while True:
+    ok, frame_bgr = capture.read()
+    if not ok or frame_bgr is None:
+        break
+    if frame_bgr.shape[1] != width or frame_bgr.shape[0] != height:
+        frame_bgr = cv2.resize(frame_bgr, (width, height), interpolation=cv2.INTER_AREA)
+    writer.write(frame_bgr)
+```
+
+- `ui/widgets/webcam_page.py`
+  - Imports and uses OpenCV during webcam preview startup
+  - Scans available camera devices with `cv2.VideoCapture`
+  - Converts preview frames from `BGR` to `RGB` for the Qt UI
+  - Chooses backend constants such as `CAP_AVFOUNDATION` or `CAP_DSHOW` depending on OS
+
+```python
+if self._recording_state == RECORDING and self._recorder is not None:
+    self._recorder.write(frame_bgr)
+
+frame_rgb = self._cv2.cvtColor(frame_bgr, self._cv2.COLOR_BGR2RGB)
+self.update_frame(frame_rgb)
+
+if backend is None:
+    return self._cv2.VideoCapture(device_index)
+return self._cv2.VideoCapture(device_index, backend)
+```
+
+- `ui/widgets/screen_capture_panel.py`
+  - Imports and uses OpenCV for screen-recording output
+  - Converts captured `RGBA` screen images to `BGR` frames with `cv2.cvtColor`
+  - Saves screen snapshots with `cv2.imwrite`
+
+```python
+frame_rgba = np.frombuffer(buffer, dtype=np.uint8).reshape((height, width, 4))
+return self._cv2.cvtColor(frame_rgba, self._cv2.COLOR_RGBA2BGR)
+```
+
+```python
+output_path = self._build_snapshot_path()
+output_path.parent.mkdir(parents=True, exist_ok=True)
+if not self._cv2.imwrite(str(output_path), frame_bgr):
+    self.set_status(_screen_text(self._language, "unable_save_snapshot", path=output_path))
+    return
+```
+
+In short, OpenCV is used for:
+
+- webcam device access
+- live frame capture
+- frame color conversion
+- FPS / metadata reading
+- video encoding and codec handling
+- video conversion
+- snapshot file output
+
+Note:
+
+- `core/image_converter.py` mainly uses `Pillow` for image export and resizing
+- The main OpenCV-heavy paths are webcam capture, screen recording, and video conversion
 
 ## Window Capture Notes
 
