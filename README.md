@@ -61,6 +61,7 @@ Upload the final demo clips to GitHub, YouTube, or cloud storage and replace the
 
 Recommended filenames if you keep local copies in the repository:
 
+- `videos/webcam-recorder-total.mov`
 - `videos/screen-recorder-total.mp4`
 - `videos/file-converter-video.mp4`
 - `videos/file-converter-image.mp4`
@@ -68,6 +69,9 @@ Recommended filenames if you keep local copies in the repository:
 Suggested markdown:
 
 ```md
+### Webcam Recorder
+[Watch Webcam Recorder Demo](videos/webcam-recorder-total.mov)
+
 ### Screen Recorder
 [Watch Screen Recorder Demo](videos/screen-recorder-total.mp4)
 

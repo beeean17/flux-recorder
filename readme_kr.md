@@ -61,6 +61,7 @@ English version: [README.md](README.md)
 
 저장소 안에 같이 둘 경우 권장 파일명:
 
+- `videos/webcam-recorder-total.mov`
 - `videos/screen-recorder-total.mp4`
 - `videos/file-converter-video.mp4`
 - `videos/file-converter-image.mp4`
@@ -68,6 +69,9 @@ English version: [README.md](README.md)
 권장 마크다운:
 
 ```md
+### Webcam Recorder
+[Webcam Recorder 데모 보기](videos/webcam-recorder-total.mov)
+
 ### Screen Recorder
 [Screen Recorder 데모 보기](videos/screen-recorder-total.mp4)
 
