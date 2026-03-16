@@ -12,27 +12,6 @@ It currently includes:
 
 ## App Screenshots
 
-Add captured screenshots to `images/` and replace the placeholders below when the final assets are ready.
-
-Recommended filenames:
-
-- `images/dashboard-en.png`
-- `images/dashboard-ko.png`
-- `images/webcam-recorder-default.png`
-- `images/webcam-recorder-flash.png`
-- `images/webcam-recorder-grid.png`
-- `images/screen-recorder-overview.png`
-- `images/screen-recorder-fullscreen.png`
-- `images/screen-recorder-window.png`
-- `images/screen-recorder-custom.png`
-- `images/screen-recorder-recording.png`
-- `images/file-converter-video.png`
-- `images/file-converter-image.png`
-- `images/file-converter-crop.png`
-
-Suggested markdown:
-
-```md
 ### Dashboard
 ![Dashboard English](images/dashboard-en.png)
 ![Dashboard Korean](images/dashboard-ko.png)
@@ -44,41 +23,28 @@ Suggested markdown:
 
 ### Screen Recorder
 ![Screen Recorder Overview](images/screen-recorder-overview.png)
-![Screen Recorder Full Screen](images/screen-recorder-fullscreen.png)
 ![Screen Recorder Window](images/screen-recorder-window.png)
 ![Screen Recorder Custom Region](images/screen-recorder-custom.png)
-![Screen Recorder Recording State](images/screen-recorder-recording.png)
+Screen recorder full-screen and recording-state screenshots can be added here when those files are ready.
 
 ### Converter
 ![Video Converter](images/file-converter-video.png)
 ![Image Converter](images/file-converter-image.png)
 ![Image Crop Dialog](images/file-converter-crop.png)
-```
 
 ## Demo Videos
 
-Upload the final demo clips to GitHub, YouTube, or cloud storage and replace the placeholders below with the final links if needed.
+GitHub README renders local images inline, but local video files are shown most reliably as links.
 
-Recommended filenames if you keep local copies in the repository:
-
-- `videos/webcam-recorder-total.mov`
-- `videos/screen-recorder-total.mp4`
-- `videos/file-converter-video.mp4`
-- `videos/file-converter-image.mp4`
-
-Suggested markdown:
-
-```md
 ### Webcam Recorder
-[Watch Webcam Recorder Demo](videos/webcam-recorder-total.mov)
+- [Watch Webcam Recorder Demo](videos/webcam-recorder-total.mov)
 
 ### Screen Recorder
-[Watch Screen Recorder Demo](videos/screen-recorder-total.mp4)
+- [Watch Screen Recorder Demo](videos/screen-recorder-total.mp4)
 
 ### Converter
-[Watch Video Converter Demo](videos/file-converter-video.mp4)
-[Watch Image Converter Demo](videos/file-converter-image.mp4)
-```
+- [Watch Video Converter Demo](videos/file-converter-video.mp4)
+- [Watch Image Converter Demo](videos/file-converter-image.mp4)
 
 ## Requirements
 

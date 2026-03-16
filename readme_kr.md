@@ -12,27 +12,6 @@ English version: [README.md](README.md)
 
 ## 앱 스크린샷
 
-실행 화면 스크린샷은 `images/` 폴더에 넣고, 최종 제출 전에 아래 placeholder를 실제 경로로 교체하면 됩니다.
-
-권장 파일명:
-
-- `images/dashboard-en.png`
-- `images/dashboard-ko.png`
-- `images/webcam-recorder-default.png`
-- `images/webcam-recorder-flash.png`
-- `images/webcam-recorder-grid.png`
-- `images/screen-recorder-overview.png`
-- `images/screen-recorder-fullscreen.png`
-- `images/screen-recorder-window.png`
-- `images/screen-recorder-custom.png`
-- `images/screen-recorder-recording.png`
-- `images/file-converter-video.png`
-- `images/file-converter-image.png`
-- `images/file-converter-crop.png`
-
-권장 마크다운:
-
-```md
 ### Dashboard
 ![Dashboard English](images/dashboard-en.png)
 ![Dashboard Korean](images/dashboard-ko.png)
@@ -44,41 +23,28 @@ English version: [README.md](README.md)
 
 ### Screen Recorder
 ![Screen Recorder Overview](images/screen-recorder-overview.png)
-![Screen Recorder Full Screen](images/screen-recorder-fullscreen.png)
 ![Screen Recorder Window](images/screen-recorder-window.png)
 ![Screen Recorder Custom Region](images/screen-recorder-custom.png)
-![Screen Recorder Recording State](images/screen-recorder-recording.png)
+화면 녹화의 전체화면, 실제 녹화 상태 스크린샷은 파일이 준비되면 여기에 추가하면 됩니다.
 
 ### Converter
 ![Video Converter](images/file-converter-video.png)
 ![Image Converter](images/file-converter-image.png)
 ![Image Crop Dialog](images/file-converter-crop.png)
-```
 
 ## 데모 영상
 
-최종 데모 영상은 GitHub, YouTube, 또는 클라우드 저장소에 올린 뒤 필요하면 아래 placeholder를 최종 링크로 바꿔 넣으면 됩니다.
+GitHub README에서는 로컬 이미지는 본문에 바로 표시되지만, 로컬 비디오 파일은 링크로 두는 방식이 가장 안정적입니다.
 
-저장소 안에 같이 둘 경우 권장 파일명:
-
-- `videos/webcam-recorder-total.mov`
-- `videos/screen-recorder-total.mp4`
-- `videos/file-converter-video.mp4`
-- `videos/file-converter-image.mp4`
-
-권장 마크다운:
-
-```md
 ### Webcam Recorder
-[Webcam Recorder 데모 보기](videos/webcam-recorder-total.mov)
+- [Webcam Recorder 데모 보기](videos/webcam-recorder-total.mov)
 
 ### Screen Recorder
-[Screen Recorder 데모 보기](videos/screen-recorder-total.mp4)
+- [Screen Recorder 데모 보기](videos/screen-recorder-total.mp4)
 
 ### Converter
-[Video Converter 데모 보기](videos/file-converter-video.mp4)
-[Image Converter 데모 보기](videos/file-converter-image.mp4)
-```
+- [Video Converter 데모 보기](videos/file-converter-video.mp4)
+- [Image Converter 데모 보기](videos/file-converter-image.mp4)
 
 ## 요구 사항
 
