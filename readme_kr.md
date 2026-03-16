@@ -14,23 +14,40 @@ English version: [README.md](README.md)
 
 ### Dashboard
 ![Dashboard English](images/dashboard-en.png)
+웹캠, 화면 캡처, 변환기로 이동할 수 있는 메인 허브 화면의 영어 버전입니다.
+
 ![Dashboard Korean](images/dashboard-ko.png)
+동일한 기능 진입점을 한국어로 보여주는 대시보드 화면입니다.
 
 ### Webcam Recorder
 ![Webcam Recorder Default](images/webcam-recorder-default.png)
+실시간 미리보기와 기본 촬영/녹화 조작을 보여주는 웹캠 기본 화면입니다.
+
 ![Webcam Recorder Flash Capture](images/webcam-recorder-flash.png)
+사진 촬영 순간의 플래시 효과가 적용된 스냅샷 예시입니다.
+
 ![Webcam Recorder Grid Overlay](images/webcam-recorder-grid.png)
+구도 확인을 돕는 그리드 오버레이가 켜진 웹캠 미리보기 화면입니다.
 
 ### Screen Recorder
 ![Screen Recorder Overview](images/screen-recorder-overview.png)
+화면 녹화 작업 영역과 기본 제어 구성을 보여주는 전체 개요 화면입니다.
+
 ![Screen Recorder Window](images/screen-recorder-window.png)
+특정 애플리케이션 창만 선택해서 녹화하는 창 캡처 모드 화면입니다.
+
 ![Screen Recorder Custom Region](images/screen-recorder-custom.png)
-화면 녹화의 전체화면, 실제 녹화 상태 스크린샷은 파일이 준비되면 여기에 추가하면 됩니다.
+사용자가 직접 녹화 영역을 지정하는 custom region 캡처 화면입니다.
 
 ### Converter
 ![Video Converter](images/file-converter-video.png)
+지원되는 출력 형식으로 비디오를 변환하는 화면입니다.
+
 ![Image Converter](images/file-converter-image.png)
+이미지 크기와 형식을 조정해 내보내는 변환 화면입니다.
+
 ![Image Crop Dialog](images/file-converter-crop.png)
+비율 프리셋, 모서리 드래그, 픽셀 단위 크기 표시를 포함한 이미지 crop 다이얼로그입니다.
 
 ## 데모 영상
 
@@ -264,3 +281,10 @@ if image_size is not None:
 - 현재 화면 녹화 경로는 비디오 출력에 `OpenCV`를 사용하며, 오디오 녹음은 완전히 지원하지 않습니다.
 - `Window` 캡처에서는 녹화 중 대상 창 크기 변경을 지원하지 않습니다.
 - 일부 하드웨어 가속 창은 올바르게 선택해도 여전히 캡처에 실패할 수 있습니다.
+
+## 향후 업데이트 계획
+
+- 이미지 컨버터를 더 강화해, 하나의 `PNG` 원본으로부터 전체 `ICO`, `ICNS` 아이콘 세트를 생성하는 흐름을 추가할 예정입니다.
+- 아이콘 변환 시 `16x16`, `32x32`, `48x48`, `64x64`, `128x128`, `256x256` 같은 표준 크기를 자동으로 함께 생성하도록 확장할 계획입니다.
+- crop과 resize 이후에도 이미지 품질이 더 안정적으로 유지되도록 변환 파이프라인을 개선하고, 눈에 띄는 화질 저하를 줄이는 방향으로 보강할 예정입니다.
+- 녹화 기능에는 `OpenCV` 외의 추가 미디어 라이브러리를 활용해 오디오를 함께 수집하고, 이후 비디오와 결합하는 방향을 검토하고 있습니다.

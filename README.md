@@ -14,23 +14,40 @@ It currently includes:
 
 ### Dashboard
 ![Dashboard English](images/dashboard-en.png)
+English dashboard view showing the main navigation hub for webcam, screen capture, and converter workflows.
+
 ![Dashboard Korean](images/dashboard-ko.png)
+Korean dashboard view showing the localized home screen and the same feature entry points.
 
 ### Webcam Recorder
 ![Webcam Recorder Default](images/webcam-recorder-default.png)
+Default webcam recorder screen with the live preview and the core capture controls.
+
 ![Webcam Recorder Flash Capture](images/webcam-recorder-flash.png)
+Webcam capture example highlighting the still-photo flash effect during snapshot capture.
+
 ![Webcam Recorder Grid Overlay](images/webcam-recorder-grid.png)
+Webcam preview with the composition grid enabled for framing assistance.
 
 ### Screen Recorder
 ![Screen Recorder Overview](images/screen-recorder-overview.png)
+Screen recorder overview showing the general recording workspace and capture controls.
+
 ![Screen Recorder Window](images/screen-recorder-window.png)
+Window capture mode focused on recording a selected application window.
+
 ![Screen Recorder Custom Region](images/screen-recorder-custom.png)
-Screen recorder full-screen and recording-state screenshots can be added here when those files are ready.
+Custom region capture mode with an adjustable recording target area.
 
 ### Converter
 ![Video Converter](images/file-converter-video.png)
+Video conversion screen for exporting source videos into supported output formats.
+
 ![Image Converter](images/file-converter-image.png)
+Image conversion screen with resize and format options for still images.
+
 ![Image Crop Dialog](images/file-converter-crop.png)
+Image crop dialog with aspect ratio presets, draggable corner handles, and pixel-based crop sizing.
 
 ## Demo Videos
 
@@ -264,3 +281,10 @@ Note:
 - Screen recording currently uses `OpenCV` for video output and does not fully support audio recording in the current path.
 - `Window` capture does not support resizing the selected window while recording.
 - Some accelerated windows may still fail even when selected correctly.
+
+## Planned Updates
+
+- Expand the image converter with stronger icon export workflows, including generating full `ICO` and `ICNS` size sets from a single `PNG` source.
+- Add standard icon resolutions automatically during icon export, such as `16x16`, `32x32`, `48x48`, `64x64`, `128x128`, and `256x256`, instead of requiring each size to be prepared manually.
+- Improve the crop and resize pipeline so image quality is preserved more reliably after editing and export, with a focus on reducing visible degradation.
+- Explore adding recording audio through an additional media library outside of `OpenCV`, then combining that audio with recorded video in the export path.
