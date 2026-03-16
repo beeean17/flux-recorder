@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -183,6 +184,8 @@ class ConverterPanel(QWidget):
 
         self._status_label = QLabel(_converter_text(self._language, "status_initial"))
         self._status_label.setWordWrap(True)
+        self._status_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._status_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         self._recent_result_name = QLabel(_converter_text(self._language, "recent_none"))
@@ -235,10 +238,14 @@ class ConverterPanel(QWidget):
 
         self._source_name_label = QLabel()
         self._source_name_label.setWordWrap(True)
+        self._source_name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._source_name_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._source_name_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 15px; font-weight: 700;")
 
         self._source_path_label = QLabel()
         self._source_path_label.setWordWrap(True)
+        self._source_path_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._source_path_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._source_path_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         self._source_button = QPushButton()
@@ -253,6 +260,8 @@ class ConverterPanel(QWidget):
 
         self._image_crop_label = QLabel()
         self._image_crop_label.setWordWrap(True)
+        self._image_crop_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._image_crop_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._image_crop_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         self._options_title_label = QLabel()
@@ -260,6 +269,8 @@ class ConverterPanel(QWidget):
 
         self._options_hint_label = QLabel()
         self._options_hint_label.setWordWrap(True)
+        self._options_hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._options_hint_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._options_hint_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         self._convert_button = QPushButton(_converter_text(self._language, "convert_generic"))
@@ -270,6 +281,8 @@ class ConverterPanel(QWidget):
         self._progress_title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 16px; font-weight: 700;")
         self._progress_hint_label = QLabel(_converter_text(self._language, "progress_hint_idle"))
         self._progress_hint_label.setWordWrap(True)
+        self._progress_hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._progress_hint_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._progress_hint_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
@@ -422,6 +435,8 @@ class ConverterPanel(QWidget):
 
         subtitle = QLabel(_converter_text(self._language, "save_location_subtitle"))
         subtitle.setWordWrap(True)
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        subtitle.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         output_title = QLabel(_converter_text(self._language, "output_folder"))
@@ -457,6 +472,8 @@ class ConverterPanel(QWidget):
         note_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
         note_body = QLabel(_converter_text(self._language, "workflow_body"))
         note_body.setWordWrap(True)
+        note_body.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        note_body.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         note_body.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         note_layout.addWidget(note_title)
         note_layout.addWidget(note_body)
@@ -498,6 +515,8 @@ class ConverterPanel(QWidget):
 
         subtitle = QLabel(_converter_text(self._language, "hero_subtitle"))
         subtitle.setWordWrap(True)
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        subtitle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         subtitle.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
 
         tab_container = self._build_mode_tabs()
@@ -507,6 +526,8 @@ class ConverterPanel(QWidget):
 
         helper = QLabel(_converter_text(self._language, "helper"))
         helper.setWordWrap(True)
+        helper.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        helper.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         helper.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
 
         layout = QVBoxLayout()
@@ -521,7 +542,7 @@ class ConverterPanel(QWidget):
         layout.addWidget(options_card)
         layout.addWidget(progress_card)
         layout.addStretch(1)
-        layout.addWidget(helper, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(helper)
         panel.setLayout(layout)
         return panel
 

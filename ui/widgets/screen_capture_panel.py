@@ -977,7 +977,9 @@ class ScreenCapturePanel(QWidget):
 
         self._output_size_value = QLabel()
         self._output_size_value.setWordWrap(True)
-        self._output_size_value.setMinimumHeight(44)
+        self._output_size_value.setMinimumHeight(58)
+        self._output_size_value.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+        self._output_size_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._output_size_value.setStyleSheet(self._readonly_info_style())
 
         self._system_audio_switch = self._build_switch(True)
@@ -993,10 +995,14 @@ class ScreenCapturePanel(QWidget):
         self._target_summary_label = QLabel()
         self._target_summary_label.setWordWrap(True)
         self._target_summary_label.setMinimumHeight(22)
+        self._target_summary_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        self._target_summary_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._target_summary_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
         self._target_hint_label = QLabel()
         self._target_hint_label.setWordWrap(True)
-        self._target_hint_label.setMinimumHeight(38)
+        self._target_hint_label.setMinimumHeight(54)
+        self._target_hint_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+        self._target_hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._target_hint_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         self._select_target_button = QPushButton()
         self._select_target_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1281,6 +1287,9 @@ class ScreenCapturePanel(QWidget):
 
         helper = QLabel(_screen_text(self._language, "helper"))
         helper.setWordWrap(True)
+        helper.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        helper.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        helper.setMinimumHeight(44)
         helper.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
 
         setup_title = QLabel(_screen_text(self._language, "capture_setup"))
@@ -1323,7 +1332,7 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addWidget(setup_panel)
-        layout.addWidget(helper, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(helper)
         layout.addStretch(1)
         frame.setLayout(layout)
         return frame
@@ -1458,7 +1467,7 @@ class ScreenCapturePanel(QWidget):
         card = QFrame()
         card.setObjectName("screen_capture_target_card")
         card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-        card.setMinimumHeight(168)
+        card.setMinimumHeight(196)
         card.setStyleSheet(
             f"""
             QFrame#screen_capture_target_card {{
