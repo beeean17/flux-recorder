@@ -55,18 +55,25 @@ Suggested markdown:
 ![Image Crop Dialog](images/file-converter-crop.png)
 ```
 
-## Demo Video
+## Demo Videos
 
-Upload a demo video to GitHub, YouTube, or cloud storage and place the final link here.
+Upload the final demo clips to GitHub, YouTube, or cloud storage and replace the placeholders below with the final links if needed.
 
-Recommended filename if you keep a local copy in the repository:
+Recommended filenames if you keep local copies in the repository:
 
-- `videos/flux-recorder-demo.mp4`
+- `videos/screen-recorder-total.mp4`
+- `videos/file-converter-video.mp4`
+- `videos/file-converter-image.mp4`
 
 Suggested markdown:
 
 ```md
-[Watch Demo Video](videos/flux-recorder-demo.mp4)
+### Screen Recorder
+[Watch Screen Recorder Demo](videos/screen-recorder-total.mp4)
+
+### Converter
+[Watch Video Converter Demo](videos/file-converter-video.mp4)
+[Watch Image Converter Demo](videos/file-converter-image.mp4)
 ```
 
 ## Requirements

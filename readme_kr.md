@@ -57,16 +57,23 @@ English version: [README.md](README.md)
 
 ## 데모 영상
 
-데모 영상은 GitHub, YouTube, 또는 클라우드 저장소에 올린 뒤 최종 링크를 이 섹션에 넣으면 됩니다.
+최종 데모 영상은 GitHub, YouTube, 또는 클라우드 저장소에 올린 뒤 필요하면 아래 placeholder를 최종 링크로 바꿔 넣으면 됩니다.
 
 저장소 안에 같이 둘 경우 권장 파일명:
 
-- `videos/flux-recorder-demo.mp4`
+- `videos/screen-recorder-total.mp4`
+- `videos/file-converter-video.mp4`
+- `videos/file-converter-image.mp4`
 
 권장 마크다운:
 
 ```md
-[데모 영상 보기](videos/flux-recorder-demo.mp4)
+### Screen Recorder
+[Screen Recorder 데모 보기](videos/screen-recorder-total.mp4)
+
+### Converter
+[Video Converter 데모 보기](videos/file-converter-video.mp4)
+[Image Converter 데모 보기](videos/file-converter-image.mp4)
 ```
 
 ## 요구 사항
