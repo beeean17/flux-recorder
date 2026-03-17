@@ -20,10 +20,8 @@ Recommended filenames:
 - `images/webcam-recorder-flash.png`
 - `images/webcam-recorder-grid.png`
 - `images/screen-recorder-overview.png`
-- `images/screen-recorder-fullscreen.png`
 - `images/screen-recorder-window.png`
 - `images/screen-recorder-custom.png`
-- `images/screen-recorder-recording.png`
 - `images/file-converter-video.png`
 - `images/file-converter-image.png`
 - `images/file-converter-crop.png`
@@ -61,24 +59,14 @@ Screenshot gallery:
       <sub><strong>Screen Recorder</strong>: Overview of the capture setup workspace.</sub>
     </td>
     <td align="center" width="50%">
-      <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: Full-screen capture mode setup.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
       <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Window capture mode on Windows.</sub>
     </td>
-    <td align="center" width="50%">
-      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
-    </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: Active recording state with the capture controls.</sub>
+      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
     </td>
     <td></td>
   </tr>

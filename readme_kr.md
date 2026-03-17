@@ -20,10 +20,8 @@ English version: [README.md](README.md)
 - `images/webcam-recorder-flash.png`
 - `images/webcam-recorder-grid.png`
 - `images/screen-recorder-overview.png`
-- `images/screen-recorder-fullscreen.png`
 - `images/screen-recorder-window.png`
 - `images/screen-recorder-custom.png`
-- `images/screen-recorder-recording.png`
 - `images/file-converter-video.png`
 - `images/file-converter-image.png`
 - `images/file-converter-crop.png`
@@ -61,24 +59,14 @@ English version: [README.md](README.md)
       <sub><strong>Screen Recorder</strong>: 화면 캡처 설정 작업 공간 개요.</sub>
     </td>
     <td align="center" width="50%">
-      <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: 전체 화면 캡처 모드 설정 화면.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
       <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Windows 환경의 창 캡처 모드.</sub>
     </td>
-    <td align="center" width="50%">
-      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: 사용자 지정 영역 선택 흐름.</sub>
-    </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
-      <sub><strong>Screen Recorder</strong>: 실제 녹화 진행 상태 화면.</sub>
+      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: 사용자 지정 영역 선택 흐름.</sub>
     </td>
     <td></td>
   </tr>
