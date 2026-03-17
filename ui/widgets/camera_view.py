@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QImage, QPaintEvent, QPainter, QPen, QPixmap, QResizeEvent
-from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import QLabel, QSizePolicy
 
 from core.recording_state import IDLE, RecordingState
 
@@ -17,7 +17,8 @@ class CameraView(QLabel):
         self._recording_state: RecordingState = IDLE
         self._grid_enabled = False
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setMinimumSize(640, 480)
+        self.setMinimumSize(320, 240)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setStyleSheet("background-color: #111; border-radius: 8px;")
         self.setText("Camera preview is starting...")
 

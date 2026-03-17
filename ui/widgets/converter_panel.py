@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -414,9 +415,40 @@ class ConverterPanel(QWidget):
         return layout
 
     def _build_sidebar(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setFixedWidth(340)
+        scroll_area.setStyleSheet(
+            f"""
+            QScrollArea {{
+                background: {SIDEBAR};
+                border: none;
+            }}
+            QWidget#converterSidebar {{
+                background: {SIDEBAR};
+            }}
+            QScrollBar:vertical {{
+                background: {SIDEBAR};
+                width: 10px;
+                margin: 8px 4px 8px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #1d3529;
+                border-radius: 5px;
+                min-height: 36px;
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            """
+        )
+
         sidebar = QFrame()
         sidebar.setObjectName("converterSidebar")
-        sidebar.setFixedWidth(320)
+        sidebar.setMinimumWidth(320)
         sidebar.setStyleSheet(
             f"""
             QFrame#converterSidebar {{
@@ -492,9 +524,38 @@ class ConverterPanel(QWidget):
         layout.addWidget(note_card)
         layout.addStretch(1)
         sidebar.setLayout(layout)
-        return sidebar
+        scroll_area.setWidget(sidebar)
+        return scroll_area
 
     def _build_main_panel(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("converterMainPanelScroll")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet(
+            f"""
+            QScrollArea#converterMainPanelScroll {{
+                background: {SURFACE};
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background: {SURFACE};
+                width: 10px;
+                margin: 8px 4px 8px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #1d3529;
+                border-radius: 5px;
+                min-height: 36px;
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            """
+        )
+
         panel = QFrame()
         panel.setObjectName("converterMainPanel")
         panel.setStyleSheet(
@@ -511,6 +572,8 @@ class ConverterPanel(QWidget):
         badge.setStyleSheet(self._badge_style("#11241b", "#86efac"))
 
         title = QLabel(_converter_text(self._language, "hero_title"))
+        title.setWordWrap(True)
+        title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 28px; font-weight: 700;")
 
         subtitle = QLabel(_converter_text(self._language, "hero_subtitle"))
@@ -544,7 +607,8 @@ class ConverterPanel(QWidget):
         layout.addStretch(1)
         layout.addWidget(helper)
         panel.setLayout(layout)
-        return panel
+        scroll_area.setWidget(panel)
+        return scroll_area
 
     def _build_mode_tabs(self) -> QWidget:
         container = QFrame()

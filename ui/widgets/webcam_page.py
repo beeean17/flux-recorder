@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -29,7 +30,8 @@ MIN_RECORDING_FPS = 5.0
 MAX_RECORDING_FPS = 60.0
 DEFAULT_CAMERA_FPS = 30.0
 COMMON_CAMERA_FPS = (15.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0)
-MAX_CAMERA_SCAN_INDEX = 5
+MAX_CAMERA_SCAN_INDEX = 10
+CAMERA_READ_FAILURE_LIMIT = 15
 
 WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {
@@ -253,7 +255,7 @@ class WebcamPage(QWidget):
         self._language = language if language in WEBCAM_TRANSLATIONS else "en"
         self._recording_state: RecordingState = IDLE
         self._camera_view = CameraView()
-        self._camera_view.setMinimumSize(900, 620)
+        self._camera_view.setMinimumSize(480, 320)
         self._camera_view.setStyleSheet("background: #000000; border: none;")
         self._camera_view.setText(_webcam_text(self._language, "camera_preview_starting"))
 
@@ -262,6 +264,8 @@ class WebcamPage(QWidget):
         self._camera_capture = None
         self._camera_index = 0
         self._available_camera_indices: list[int] = []
+        self._camera_backends_by_index: dict[int, int | None] = {}
+        self._camera_read_failures = 0
         self._is_populating_video_devices = False
         self._preview_timer: QTimer | None = None
         self._recorder = None
@@ -413,6 +417,8 @@ class WebcamPage(QWidget):
         self._last_frame_timestamp = None
         self._frame_intervals.clear()
         self._available_camera_indices = []
+        self._camera_backends_by_index = {}
+        self._camera_read_failures = 0
         self._sync_video_device_combo()
         self.set_recording_state(IDLE)
 
@@ -635,9 +641,40 @@ class WebcamPage(QWidget):
         return panel
 
     def _build_settings_sidebar(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setFixedWidth(340)
+        scroll_area.setStyleSheet(
+            """
+            QScrollArea {
+                background: #0f172a;
+                border: none;
+            }
+            QWidget#webcam_settings_sidebar {
+                background: #0f172a;
+            }
+            QScrollBar:vertical {
+                background: #0f172a;
+                width: 10px;
+                margin: 8px 4px 8px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: #1e293b;
+                border-radius: 5px;
+                min-height: 36px;
+            }
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            """
+        )
+
         sidebar = QFrame()
-        sidebar.setFixedWidth(320)
-        sidebar.setStyleSheet("background: #0f172a;")
+        sidebar.setObjectName("webcam_settings_sidebar")
+        sidebar.setMinimumWidth(320)
 
         back_button = QPushButton(_webcam_text(self._language, "back_to_menu"))
         back_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -698,7 +735,8 @@ class WebcamPage(QWidget):
         layout.addLayout(path_row)
         layout.addWidget(self._status_label)
         sidebar.setLayout(layout)
-        return sidebar
+        scroll_area.setWidget(sidebar)
+        return scroll_area
 
     def _build_footer(self) -> QWidget:
         footer = QFrame()
@@ -1013,9 +1051,13 @@ class WebcamPage(QWidget):
 
         ok, frame_bgr = self._camera_capture.read()
         if not ok or frame_bgr is None:
+            self._camera_read_failures += 1
+            if self._camera_read_failures < CAMERA_READ_FAILURE_LIMIT:
+                return
             self.set_status(_webcam_text(self._language, "failed_read_frame"))
             self._release_camera()
             return
+        self._camera_read_failures = 0
 
         height, width = frame_bgr.shape[:2]
         size = (width, height)
@@ -1057,60 +1099,105 @@ class WebcamPage(QWidget):
         if self._cv2 is None:
             return []
 
+        _NOT_FOUND = object()
         available_indices: list[int] = []
+        discovered_backends: dict[int, int | None] = {}
         for device_index in range(MAX_CAMERA_SCAN_INDEX + 1):
-            capture = self._create_video_capture(device_index)
-            if capture is None:
+            selected_backend: object = _NOT_FOUND
+            fallback_backend: object = _NOT_FOUND
+
+            for backend in self._candidate_capture_backends():
+                capture = self._create_video_capture(device_index, backend)
+                if capture is None:
+                    continue
+
+                try:
+                    if not capture.isOpened():
+                        continue
+                    if fallback_backend is _NOT_FOUND:
+                        fallback_backend = backend
+                    ok, frame_bgr = capture.read()
+                    if ok and frame_bgr is not None:
+                        selected_backend = backend
+                        break
+                finally:
+                    capture.release()
+
+            if selected_backend is _NOT_FOUND:
+                selected_backend = fallback_backend
+            if selected_backend is _NOT_FOUND:
                 continue
 
-            try:
-                if not capture.isOpened():
-                    continue
-                ok, frame_bgr = capture.read()
-                if ok and frame_bgr is not None:
-                    available_indices.append(device_index)
-            finally:
-                capture.release()
+            available_indices.append(device_index)
+            discovered_backends[device_index] = selected_backend  # type: ignore[assignment]
+
+        self._camera_backends_by_index = discovered_backends
 
         return available_indices
 
-    def _create_video_capture(self, device_index: int):
+    def _create_video_capture(self, device_index: int, backend: int | None = None):
         if self._cv2 is None:
             return None
 
-        backend = self._preferred_capture_backend()
         if backend is None:
             return self._cv2.VideoCapture(device_index)
         return self._cv2.VideoCapture(device_index, backend)
 
-    def _preferred_capture_backend(self):
+    def _candidate_capture_backends(self) -> list[int | None]:
         if self._cv2 is None:
-            return None
+            return [None]
 
         platform_name = system()
+        candidates: list[int | None] = []
         if platform_name == "Darwin":
-            return getattr(self._cv2, "CAP_AVFOUNDATION", None)
+            candidates.extend([getattr(self._cv2, "CAP_AVFOUNDATION", None), None])
         if platform_name == "Windows":
-            return getattr(self._cv2, "CAP_DSHOW", None)
-        return None
+            candidates.extend(
+                [
+                    getattr(self._cv2, "CAP_MSMF", None),
+                    getattr(self._cv2, "CAP_DSHOW", None),
+                    None,
+                ]
+            )
+        if not candidates:
+            candidates.append(None)
+
+        deduplicated: list[int | None] = []
+        for candidate in candidates:
+            if candidate not in deduplicated:
+                deduplicated.append(candidate)
+        return deduplicated
 
     def _open_camera(self, device_index: int) -> bool:
         self._release_camera()
 
-        capture = self._create_video_capture(device_index)
-        if capture is None or not capture.isOpened():
-            if capture is not None:
-                capture.release()
-            return False
+        backends: list[int | None] = []
+        remembered_backend = self._camera_backends_by_index.get(device_index)
+        if remembered_backend in self._candidate_capture_backends():
+            backends.append(remembered_backend)
+        for backend in self._candidate_capture_backends():
+            if backend not in backends:
+                backends.append(backend)
 
-        self._camera_capture = capture
-        self._camera_index = device_index
-        self._last_frame_timestamp = None
-        self._frame_intervals.clear()
+        for backend in backends:
+            capture = self._create_video_capture(device_index, backend)
+            if capture is None or not capture.isOpened():
+                if capture is not None:
+                    capture.release()
+                continue
 
-        if self._preview_timer is not None and not self._preview_timer.isActive():
-            self._preview_timer.start(16)
-        return True
+            self._camera_capture = capture
+            self._camera_index = device_index
+            self._camera_backends_by_index[device_index] = backend
+            self._camera_read_failures = 0
+            self._last_frame_timestamp = None
+            self._frame_intervals.clear()
+
+            if self._preview_timer is not None and not self._preview_timer.isActive():
+                self._preview_timer.start(16)
+            return True
+
+        return False
 
     def _release_camera(self) -> None:
         if self._preview_timer is not None and self._preview_timer.isActive():
@@ -1118,6 +1205,7 @@ class WebcamPage(QWidget):
         if self._camera_capture is not None:
             self._camera_capture.release()
         self._camera_capture = None
+        self._camera_read_failures = 0
 
     def _sync_video_device_combo(self) -> None:
         if self._video_device_combo is None:

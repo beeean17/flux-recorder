@@ -5,7 +5,7 @@ from pathlib import Path
 from platform import system
 
 from PyQt6.QtCore import QThread, Qt, pyqtSignal
-from PyQt6.QtGui import QCloseEvent, QKeyEvent
+from PyQt6.QtGui import QCloseEvent, QGuiApplication, QKeyEvent
 from PyQt6.QtWidgets import (
     QFileDialog,
     QMainWindow,
@@ -146,8 +146,8 @@ class MainWindow(QMainWindow):
         self._converter_image_source = self._app_settings.converter_image_source
 
         self.setWindowTitle(self._window_title(mode))
-        self.resize(1480, 980)
         self._switch_mode(mode)
+        self._apply_initial_window_size()
 
     def _setup_dashboard_mode(self) -> None:
         self.setStyleSheet(f"QMainWindow {{ background: {MAIN_WINDOW_BACKGROUNDS['dashboard']}; }}")
@@ -407,6 +407,26 @@ class MainWindow(QMainWindow):
     def _default_video_directory(self) -> Path:
         home = Path.home()
         return home / ("Videos" if system() == "Windows" else "Movies")
+
+    def _apply_initial_window_size(self) -> None:
+        preferred_width = 1480
+        preferred_height = 980
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            self.resize(preferred_width, preferred_height)
+            return
+
+        available = screen.availableGeometry()
+        width = min(preferred_width, max(720, available.width() - 48))
+        height = min(preferred_height, max(560, available.height() - 48))
+        width = min(width, available.width())
+        height = min(height, available.height())
+
+        self.resize(width, height)
+        self.move(
+            available.x() + max(0, (available.width() - width) // 2),
+            available.y() + max(0, (available.height() - height) // 2),
+        )
 
     def _default_media_directory(self) -> Path:
         return Path.home()

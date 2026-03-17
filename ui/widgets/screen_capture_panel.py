@@ -267,6 +267,31 @@ if system() == "Windows":
         ]
 
 
+def _widget_window_handle(widget: QWidget | None) -> int | None:
+    if widget is None:
+        return None
+
+    try:
+        return int(widget.winId())
+    except TypeError:
+        return None
+
+
+def _physical_point_to_logical(reference_window_handle: int | None, x: int, y: int) -> QPoint:
+    if system() != "Windows" or reference_window_handle is None:
+        return QPoint(x, y)
+
+    try:
+        converter = ctypes.windll.user32.PhysicalToLogicalPointForPerMonitorDPI
+        point = _POINT(x, y)
+        if not converter(reference_window_handle, ctypes.byref(point)):
+            return QPoint(x, y)
+    except (AttributeError, OSError, TypeError):
+        return QPoint(x, y)
+
+    return QPoint(point.x, point.y)
+
+
 class CaptureSelectorOverlay(QWidget):
     selection_made = pyqtSignal(object)
     selection_cancelled = pyqtSignal()
@@ -407,10 +432,10 @@ class CaptureSelectorOverlay(QWidget):
         get_window = user32.GetWindow
         get_top_window = user32.GetTopWindow
         is_visible = user32.IsWindowVisible
-        get_window_rect = user32.GetWindowRect
         get_window_text_length = user32.GetWindowTextLengthW
         get_window_text = user32.GetWindowTextW
         hwnd = get_top_window(0)
+        reference_window_handle = _widget_window_handle(self)
 
         excluded_handles = set(self._excluded_handles)
         try:
@@ -421,15 +446,13 @@ class CaptureSelectorOverlay(QWidget):
         while hwnd:
             handle = int(hwnd)
             if handle not in excluded_handles and is_visible(hwnd):
-                rect = _RECT()
-                if get_window_rect(hwnd, ctypes.byref(rect)):
-                    bounds = QRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
-                    if bounds.width() >= MIN_SELECTION_SIZE and bounds.height() >= MIN_SELECTION_SIZE and bounds.contains(global_point):
-                        title_length = get_window_text_length(hwnd)
-                        title_buffer = ctypes.create_unicode_buffer(title_length + 1)
-                        get_window_text(hwnd, title_buffer, len(title_buffer))
-                        title = title_buffer.value.strip() or f"Window {handle}"
-                        return CaptureTarget(mode="window", rect=bounds, window_handle=handle, title=title)
+                bounds = _window_rect_from_handle(handle, reference_window_handle=reference_window_handle)
+                if bounds is not None and bounds.contains(global_point):
+                    title_length = get_window_text_length(hwnd)
+                    title_buffer = ctypes.create_unicode_buffer(title_length + 1)
+                    get_window_text(hwnd, title_buffer, len(title_buffer))
+                    title = title_buffer.value.strip() or f"Window {handle}"
+                    return CaptureTarget(mode="window", rect=bounds, window_handle=handle, title=title)
             hwnd = get_window(hwnd, 2)
 
         return None
@@ -545,7 +568,7 @@ def _build_soft_blur(image: QImage, divisor: int = 12) -> QImage:
     )
 
 
-def _window_rect_from_handle(window_handle: int) -> QRect | None:
+def _window_rect_from_handle(window_handle: int, reference_window_handle: int | None = None) -> QRect | None:
     if system() != "Windows":
         return None
 
@@ -557,11 +580,22 @@ def _window_rect_from_handle(window_handle: int) -> QRect | None:
     if not ok:
         return None
 
-    width = rect.right - rect.left
-    height = rect.bottom - rect.top
+    if reference_window_handle is not None:
+        top_left = _physical_point_to_logical(reference_window_handle, rect.left, rect.top)
+        bottom_right = _physical_point_to_logical(reference_window_handle, rect.right, rect.bottom)
+        left = top_left.x()
+        top = top_left.y()
+        width = bottom_right.x() - top_left.x()
+        height = bottom_right.y() - top_left.y()
+    else:
+        left = rect.left
+        top = rect.top
+        width = rect.right - rect.left
+        height = rect.bottom - rect.top
+
     if width < MIN_SELECTION_SIZE or height < MIN_SELECTION_SIZE:
         return None
-    return QRect(rect.left, rect.top, width, height)
+    return QRect(left, top, width, height)
 
 
 def _window_is_topmost(window_handle: int) -> bool:
@@ -1263,6 +1297,34 @@ class ScreenCapturePanel(QWidget):
         return scroll_area
 
     def _build_main_canvas(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("screen_capture_main_canvas_scroll")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet(
+            f"""
+            QScrollArea#screen_capture_main_canvas_scroll {{
+                background: {SURFACE};
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background: {SURFACE};
+                width: 10px;
+                margin: 8px 4px 8px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #2a223d;
+                border-radius: 5px;
+                min-height: 36px;
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            """
+        )
+
         frame = QFrame()
         frame.setObjectName("screen_capture_main_canvas")
         frame.setStyleSheet(
@@ -1279,6 +1341,8 @@ class ScreenCapturePanel(QWidget):
         badge.setStyleSheet(self._badge_style("#1d1730", "#c4b5fd"))
 
         title = QLabel(_screen_text(self._language, "hero_title"))
+        title.setWordWrap(True)
+        title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 28px; font-weight: 700;")
 
         subtitle = QLabel(_screen_text(self._language, "hero_subtitle"))
@@ -1335,7 +1399,8 @@ class ScreenCapturePanel(QWidget):
         layout.addWidget(helper)
         layout.addStretch(1)
         frame.setLayout(layout)
-        return frame
+        scroll_area.setWidget(frame)
+        return scroll_area
 
     def _build_footer(self) -> QWidget:
         footer = QFrame()
@@ -1645,7 +1710,10 @@ class ScreenCapturePanel(QWidget):
 
         live_rect = target.rect
         if target.window_handle is not None:
-            refreshed_rect = _window_rect_from_handle(target.window_handle)
+            refreshed_rect = _window_rect_from_handle(
+                target.window_handle,
+                reference_window_handle=_widget_window_handle(self.window()),
+            )
             if refreshed_rect is not None:
                 live_rect = refreshed_rect
                 self._window_target = CaptureTarget(
@@ -2258,7 +2326,8 @@ class ScreenCapturePanel(QWidget):
         if self._floating_controller is None:
             return
 
-        screen = QGuiApplication.primaryScreen()
+        focus_target = self._recording_focus_target()
+        screen = self._screen_for_rect(focus_target.rect if focus_target is not None else None)
         if screen is None:
             return
 
@@ -2292,7 +2361,10 @@ class ScreenCapturePanel(QWidget):
             target = self._window_target
             if target is None or target.window_handle is None:
                 return target
-            live_rect = _window_rect_from_handle(target.window_handle)
+            live_rect = _window_rect_from_handle(
+                target.window_handle,
+                reference_window_handle=_widget_window_handle(self.window()),
+            )
             if live_rect is None:
                 return target
             return CaptureTarget(

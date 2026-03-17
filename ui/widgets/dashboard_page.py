@@ -50,7 +50,7 @@ class FeatureCard(QFrame):
         super().__init__()
         self.setObjectName("featureCard")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.setMinimumSize(290, 540)
+        self.setMinimumSize(240, 460)
         self.setStyleSheet(
             f"""
             QFrame#featureCard {{
@@ -240,6 +240,8 @@ class DashboardPage(QWidget):
         brand_name.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 20px; font-weight: 800;")
 
         self._brand_hint = QLabel()
+        self._brand_hint.setWordWrap(True)
+        self._brand_hint.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self._brand_hint.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
 
         brand_row = QHBoxLayout()
@@ -247,7 +249,7 @@ class DashboardPage(QWidget):
         brand_row.setSpacing(12)
         brand_row.addWidget(brand_mark)
         brand_row.addWidget(brand_name)
-        brand_row.addWidget(self._brand_hint)
+        brand_row.addWidget(self._brand_hint, 1)
 
         language_switch = QFrame()
         language_switch.setObjectName("languageSwitch")

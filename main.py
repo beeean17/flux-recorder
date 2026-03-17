@@ -4,7 +4,8 @@ import sys
 import ctypes
 from pathlib import Path
 
-from PyQt6.QtGui import QFont, QFontDatabase, QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QFontDatabase, QGuiApplication, QIcon
 from PyQt6.QtWidgets import QApplication
 
 from core.app_mode import DASHBOARD_MODE
@@ -60,8 +61,32 @@ def _apply_platform_identity() -> None:
         pass
 
 
+def _enable_high_dpi_support() -> None:
+    if sys.platform != "win32":
+        return
+
+    try:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        return
+    except Exception:
+        pass
+
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except Exception:
+        pass
+
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
 def main() -> int:
+    _enable_high_dpi_support()
     _apply_platform_identity()
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     app.setApplicationName("flux-recorder")
     app.setDesktopFileName(APP_ID)
