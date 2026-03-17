@@ -160,19 +160,6 @@ python main.py
 
 프로젝트를 유지보수하면서 배포 파일을 다시 만들어야 할 경우를 위해 `flux-recorder.spec`, `build/build_windows.bat`, `build/build_mac.sh`는 저장소에 그대로 포함되어 있습니다.
 
-## 앱 아이콘 다시 만들기
-
-`assets/app.png`를 바꿨다면 아래 명령으로 패키징용 아이콘을 다시 생성할 수 있습니다.
-
-```bash
-python build/generate_icons.py
-```
-
-다음 파일이 다시 생성됩니다.
-
-- `assets/app.ico` Windows 빌드용 아이콘
-- `assets/app.icns` macOS 빌드용 아이콘
-
 ## 핵심 스택
 
 - 데스크톱 UI: `PyQt6`
