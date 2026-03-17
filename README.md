@@ -2,7 +2,7 @@
 
 Desktop media toolkit built with `PyQt6` and `OpenCV`.
 
-Korean version: [readme_kr.md](readme_kr.md)
+Korean version: [리드미.한국어](readme_kr.md)
 
 It currently includes:
 - Webcam recording
