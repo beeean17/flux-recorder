@@ -158,8 +158,6 @@ You do not need to run `PyInstaller` yourself just to use the app.
 - Frozen Windows builds save settings in `%APPDATA%\flux-recorder\settings.json`.
 - On first macOS launch, allow camera access when the system prompt appears.
 
-If you are maintaining the project and need to rebuild the distributable packages yourself, the repository still includes `flux-recorder.spec`, `build/build_windows.bat`, and `build/build_mac.sh`.
-
 
 ## Core Stack
 
