@@ -15,3 +15,8 @@ fi
 cd "${PROJECT_ROOT}"
 mkdir -p "${PYINSTALLER_CONFIG_DIR}"
 PYINSTALLER_CONFIG_DIR="${PYINSTALLER_CONFIG_DIR}" "${PYTHON_EXE}" -m PyInstaller --noconfirm --clean flux-recorder.spec
+
+APP_PATH="${PROJECT_ROOT}/dist/flux-recorder.app"
+if [[ -d "${APP_PATH}" ]] && command -v codesign >/dev/null 2>&1; then
+  codesign --deep --force --sign - "${APP_PATH}"
+fi

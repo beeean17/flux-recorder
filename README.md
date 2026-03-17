@@ -141,20 +141,27 @@ Windows:
 build\build_windows.bat
 ```
 
+Produces a single-file build at `dist/flux-recorder.exe`.
+
 macOS:
 
 ```bash
 bash build/build_mac.sh
 ```
 
-Output is created in `dist/flux-recorder/`.
+Produces `dist/flux-recorder.app`.
 
 Notes:
 
 - The project uses `flux-recorder.spec` for packaging.
 - `assets/` is bundled automatically.
+- Windows uses a `onefile` PyInstaller build.
+- macOS uses an app bundle so camera permissions can be declared through `Info.plist`.
+- The macOS build includes `NSCameraUsageDescription` and `NSMicrophoneUsageDescription`.
+- The macOS build script applies ad-hoc signing with `codesign --deep --force --sign -`.
 - Windows app icon uses `assets/app.ico`.
-- macOS app icon uses `assets/app.icns` if you add one. If no `.icns` file is present, the app still builds without a custom macOS icon.
+- macOS app icon uses `assets/app.icns`.
+- On first macOS launch, allow camera access when the system prompt appears.
 
 ## Core Stack
 

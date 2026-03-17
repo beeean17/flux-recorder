@@ -141,20 +141,27 @@ Windows:
 build\build_windows.bat
 ```
 
+단일 실행 파일 `dist/flux-recorder.exe`가 생성됩니다.
+
 macOS:
 
 ```bash
 bash build/build_mac.sh
 ```
 
-빌드 결과물은 `dist/flux-recorder/`에 생성됩니다.
+`dist/flux-recorder.app`이 생성됩니다.
 
 참고:
 
 - 패키징에는 `flux-recorder.spec`를 사용합니다.
 - `assets/` 폴더는 자동으로 번들됩니다.
+- Windows는 `onefile` PyInstaller 빌드를 사용합니다.
+- macOS는 카메라 권한 설명을 `Info.plist`에 넣을 수 있도록 앱 번들 방식으로 빌드합니다.
+- macOS 빌드에는 `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`가 포함됩니다.
+- macOS 빌드 스크립트는 `codesign --deep --force --sign -`로 ad-hoc 서명을 적용합니다.
 - Windows 앱 아이콘은 `assets/app.ico`를 사용합니다.
-- macOS 앱 아이콘은 `assets/app.icns`를 추가하면 사용됩니다. `.icns`가 없어도 빌드는 가능합니다.
+- macOS 앱 아이콘은 `assets/app.icns`를 사용합니다.
+- macOS에서 처음 실행할 때 시스템 카메라 권한 요청을 허용해야 합니다.
 
 ## 핵심 스택
 

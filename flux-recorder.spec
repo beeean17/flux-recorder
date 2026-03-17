@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 import sys
 from pathlib import Path
 
@@ -13,6 +14,14 @@ if assets_dir.exists():
 
 windows_icon = assets_dir / "app.ico"
 mac_icon = assets_dir / "app.icns"
+bundle_identifier = os.environ.get("FLUX_RECORDER_BUNDLE_ID", "com.yoon.fluxrecorder")
+mac_info_plist = {
+    "CFBundleDisplayName": "flux-recorder",
+    "CFBundleName": "flux-recorder",
+    "CFBundleIdentifier": bundle_identifier,
+    "NSCameraUsageDescription": "flux-recorder needs camera access for webcam preview and recording.",
+    "NSMicrophoneUsageDescription": "flux-recorder needs microphone access for audio capture.",
+}
 
 exe_icon = None
 bundle_icon = None
@@ -38,26 +47,46 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name="flux-recorder",
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=exe_icon,
-)
-
-if sys.platform == "darwin":
+if sys.platform == "win32":
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        exclude_binaries=False,
+        name="flux-recorder",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=exe_icon,
+    )
+elif sys.platform == "darwin":
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name="flux-recorder",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=exe_icon,
+    )
     coll = COLLECT(
         exe,
         a.binaries,
@@ -71,9 +100,28 @@ if sys.platform == "darwin":
         coll,
         name="flux-recorder.app",
         icon=bundle_icon,
-        bundle_identifier=None,
+        bundle_identifier=bundle_identifier,
+        info_plist=mac_info_plist,
     )
 else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name="flux-recorder",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=exe_icon,
+    )
     coll = COLLECT(
         exe,
         a.binaries,
