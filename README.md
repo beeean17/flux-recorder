@@ -147,60 +147,19 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Package With PyInstaller
+## Use Release Builds
 
-Build on each target OS separately.
+You do not need to run `PyInstaller` yourself just to use the app.
 
-- Windows build on Windows
-- macOS build on macOS
-
-Install PyInstaller first:
-
-```bash
-pip install pyinstaller
-```
-
-Windows:
-
-```bash
-build\build_windows.bat
-```
-
-Produces a portable Windows folder at `dist/flux-recorder/` and a ZIP archive at `dist/flux-recorder-windows.zip`.
-
-macOS:
-
-```bash
-bash build/build_mac.sh
-```
-
-Produces `dist/flux-recorder.app`.
-
-Notes:
-
-- The project uses `flux-recorder.spec` for packaging.
-- `assets/` is bundled automatically.
-- Windows uses an `onedir` PyInstaller build and packages it as a ZIP release.
-- macOS uses an app bundle so camera permissions can be declared through `Info.plist`.
-- The macOS build includes `NSCameraUsageDescription` and `NSMicrophoneUsageDescription`.
-- The macOS build script applies ad-hoc signing with `codesign --deep --force --sign -`.
-- Windows app icon uses `assets/app.ico`.
-- macOS app icon uses `assets/app.icns`.
+- Prebuilt release assets are already uploaded on the project's [Releases](../../releases) page.
+- Those release files were produced from this repository's `PyInstaller` packaging setup.
+- On Windows, download `flux-recorder-windows.zip`, extract it, and run `flux-recorder.exe`.
+- On macOS, download the packaged release asset and open the included app bundle.
 - Frozen Windows builds save settings in `%APPDATA%\flux-recorder\settings.json`.
 - On first macOS launch, allow camera access when the system prompt appears.
 
-## Refresh App Icons
+If you are maintaining the project and need to rebuild the distributable packages yourself, the repository still includes `flux-recorder.spec`, `build/build_windows.bat`, and `build/build_mac.sh`.
 
-If you update `assets/app.png`, regenerate the packaged app icons with:
-
-```bash
-python build/generate_icons.py
-```
-
-This recreates:
-
-- `assets/app.ico` for Windows builds
-- `assets/app.icns` for macOS builds
 
 ## Core Stack
 

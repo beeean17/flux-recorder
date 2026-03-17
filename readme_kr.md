@@ -147,47 +147,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## PyInstaller로 패키징
+## 릴리스 빌드 사용
 
-빌드는 대상 운영체제별로 각각 진행해야 합니다.
+앱을 사용하기 위해 다른 사용자가 직접 `PyInstaller`를 실행할 필요는 없습니다.
 
-- Windows 빌드는 Windows에서
-- macOS 빌드는 macOS에서
-
-먼저 PyInstaller를 설치합니다.
-
-```bash
-pip install pyinstaller
-```
-
-Windows:
-
-```bash
-build\build_windows.bat
-```
-
-Windows용 폴더 빌드 `dist/flux-recorder/`와 ZIP 아카이브 `dist/flux-recorder-windows.zip`가 생성됩니다.
-
-macOS:
-
-```bash
-bash build/build_mac.sh
-```
-
-`dist/flux-recorder.app`이 생성됩니다.
-
-참고:
-
-- 패키징에는 `flux-recorder.spec`를 사용합니다.
-- `assets/` 폴더는 자동으로 번들됩니다.
-- Windows는 `onedir` PyInstaller 빌드를 사용하고 ZIP 릴리스로 배포합니다.
-- macOS는 카메라 권한 설명을 `Info.plist`에 넣을 수 있도록 앱 번들 방식으로 빌드합니다.
-- macOS 빌드에는 `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`가 포함됩니다.
-- macOS 빌드 스크립트는 `codesign --deep --force --sign -`로 ad-hoc 서명을 적용합니다.
-- Windows 앱 아이콘은 `assets/app.ico`를 사용합니다.
-- macOS 앱 아이콘은 `assets/app.icns`를 사용합니다.
+- 미리 빌드된 릴리스 파일은 프로젝트의 [Releases](../../releases) 페이지에 올려두었습니다.
+- 이 릴리스 파일들은 이 저장소의 `PyInstaller` 패키징 설정으로 만든 결과물입니다.
+- Windows에서는 `flux-recorder-windows.zip`를 내려받아 압축을 풀고 `flux-recorder.exe`를 실행하면 됩니다.
+- macOS에서는 패키징된 릴리스 파일을 내려받아 포함된 앱 번들을 실행하면 됩니다.
 - 패키징된 Windows 앱은 `%APPDATA%\flux-recorder\settings.json`에 설정을 저장합니다.
 - macOS에서 처음 실행할 때 시스템 카메라 권한 요청을 허용해야 합니다.
+
+프로젝트를 유지보수하면서 배포 파일을 다시 만들어야 할 경우를 위해 `flux-recorder.spec`, `build/build_windows.bat`, `build/build_mac.sh`는 저장소에 그대로 포함되어 있습니다.
 
 ## 앱 아이콘 다시 만들기
 
