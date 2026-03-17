@@ -158,7 +158,6 @@ python main.py
 - 패키징된 Windows 앱은 `%APPDATA%\flux-recorder\settings.json`에 설정을 저장합니다.
 - macOS에서 처음 실행할 때 시스템 카메라 권한 요청을 허용해야 합니다.
 
-프로젝트를 유지보수하면서 배포 파일을 다시 만들어야 할 경우를 위해 `flux-recorder.spec`, `build/build_windows.bat`, `build/build_mac.sh`는 저장소에 그대로 포함되어 있습니다.
 
 ## 핵심 스택
 
