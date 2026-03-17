@@ -16,8 +16,6 @@ Add captured screenshots to `images/`. The gallery below is already arranged in 
 
 Recommended filenames:
 
-- `images/dashboard-en.png`
-- `images/dashboard-ko.png`
 - `images/webcam-recorder-default.png`
 - `images/webcam-recorder-flash.png`
 - `images/webcam-recorder-grid.png`
@@ -32,17 +30,9 @@ Recommended filenames:
 
 Screenshot gallery:
 
+### Webcam Recorder
+
 <table>
-  <tr>
-    <td align="center" width="50%">
-      <a href="images/dashboard-en.png"><img src="images/dashboard-en.png" alt="Dashboard English" width="100%"></a><br>
-      <sub><strong>Dashboard</strong>: English home screen with the main recorder entry points.</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="images/dashboard-ko.png"><img src="images/dashboard-ko.png" alt="Dashboard Korean" width="100%"></a><br>
-      <sub><strong>Dashboard</strong>: Korean home screen showing the localized interface.</sub>
-    </td>
-  </tr>
   <tr>
     <td align="center" width="50%">
       <a href="images/webcam-recorder-default.png"><img src="images/webcam-recorder-default.png" alt="Webcam Recorder Default" width="100%"></a><br>
@@ -58,31 +48,45 @@ Screenshot gallery:
       <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
       <sub><strong>Webcam Recorder</strong>: Grid overlay option for framing and alignment.</sub>
     </td>
+    <td></td>
+  </tr>
+</table>
+
+### Screen Recorder
+
+<table>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-overview.png"><img src="images/screen-recorder-overview.png" alt="Screen Recorder Overview" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Overview of the capture setup workspace.</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Full-screen capture mode setup.</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Window capture mode on Windows.</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Active recording state with the capture controls.</sub>
     </td>
+    <td></td>
   </tr>
+</table>
+
+### File Converter
+
+<table>
   <tr>
     <td align="center" width="50%">
       <a href="images/file-converter-video.png"><img src="images/file-converter-video.png" alt="Video Converter" width="100%"></a><br>

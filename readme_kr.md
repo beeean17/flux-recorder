@@ -16,8 +16,6 @@ English version: [README.md](README.md)
 
 권장 파일명:
 
-- `images/dashboard-en.png`
-- `images/dashboard-ko.png`
 - `images/webcam-recorder-default.png`
 - `images/webcam-recorder-flash.png`
 - `images/webcam-recorder-grid.png`
@@ -32,17 +30,9 @@ English version: [README.md](README.md)
 
 스크린샷 갤러리:
 
+### Webcam Recorder
+
 <table>
-  <tr>
-    <td align="center" width="50%">
-      <a href="images/dashboard-en.png"><img src="images/dashboard-en.png" alt="Dashboard English" width="100%"></a><br>
-      <sub><strong>Dashboard</strong>: 메인 기능 진입점이 보이는 영어 홈 화면.</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="images/dashboard-ko.png"><img src="images/dashboard-ko.png" alt="Dashboard Korean" width="100%"></a><br>
-      <sub><strong>Dashboard</strong>: 한글로 현지화된 홈 화면.</sub>
-    </td>
-  </tr>
   <tr>
     <td align="center" width="50%">
       <a href="images/webcam-recorder-default.png"><img src="images/webcam-recorder-default.png" alt="Webcam Recorder Default" width="100%"></a><br>
@@ -58,31 +48,45 @@ English version: [README.md](README.md)
       <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
       <sub><strong>Webcam Recorder</strong>: 구도 확인용 그리드 오버레이.</sub>
     </td>
+    <td></td>
+  </tr>
+</table>
+
+### Screen Recorder
+
+<table>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-overview.png"><img src="images/screen-recorder-overview.png" alt="Screen Recorder Overview" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: 화면 캡처 설정 작업 공간 개요.</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: 전체 화면 캡처 모드 설정 화면.</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: Windows 환경의 창 캡처 모드.</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: 사용자 지정 영역 선택 흐름.</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
       <sub><strong>Screen Recorder</strong>: 실제 녹화 진행 상태 화면.</sub>
     </td>
+    <td></td>
   </tr>
+</table>
+
+### File Converter
+
+<table>
   <tr>
     <td align="center" width="50%">
       <a href="images/file-converter-video.png"><img src="images/file-converter-video.png" alt="Video Converter" width="100%"></a><br>
