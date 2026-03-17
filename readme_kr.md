@@ -12,20 +12,6 @@ English version: [README.md](README.md)
 
 ## 앱 스크린샷
 
-실행 화면 스크린샷은 `images/` 폴더에 넣으면 되고, 아래 갤러리는 이미 2열 구조와 이미지별 설명 배치까지 준비되어 있습니다.
-
-권장 파일명:
-
-- `images/webcam-recorder-default.png`
-- `images/webcam-recorder-flash.png`
-- `images/webcam-recorder-grid.png`
-- `images/screen-recorder-overview.png`
-- `images/screen-recorder-window.png`
-- `images/screen-recorder-custom.png`
-- `images/file-converter-video.png`
-- `images/file-converter-image.png`
-- `images/file-converter-crop.png`
-
 스크린샷 갤러리:
 
 ### Webcam Recorder
@@ -274,9 +260,7 @@ if not self._cv2.imwrite(str(output_path), frame_bgr):
 - 비디오 변환
 - 스냅샷 파일 저장
 
-## 이미지 Crop 워크플로우
-
-변환기에서는 이미지 내보내기 전에 crop 영역을 먼저 선택할 수 있습니다.
+관련 변환기 image crop 흐름:
 
 - `ui/widgets/converter_panel.py`
   - 이미지 변환 흐름에서 crop 다이얼로그를 엽니다.

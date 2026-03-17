@@ -12,22 +12,6 @@ It currently includes:
 
 ## App Screenshots
 
-Add captured screenshots to `images/`. The gallery below is already arranged in a two-column layout, and each image has its caption directly underneath it.
-
-Recommended filenames:
-
-- `images/webcam-recorder-default.png`
-- `images/webcam-recorder-flash.png`
-- `images/webcam-recorder-grid.png`
-- `images/screen-recorder-overview.png`
-- `images/screen-recorder-window.png`
-- `images/screen-recorder-custom.png`
-- `images/file-converter-video.png`
-- `images/file-converter-image.png`
-- `images/file-converter-crop.png`
-
-Screenshot gallery:
-
 ### Webcam Recorder
 
 <table>
@@ -274,9 +258,7 @@ In short, OpenCV is used for:
 - video conversion
 - snapshot file output
 
-## Image Crop Workflow
-
-The converter now also supports image crop selection before export.
+Related converter image crop flow:
 
 - `ui/widgets/converter_panel.py`
   - Opens the image crop dialog from the image converter flow
