@@ -12,6 +12,9 @@ It currently includes:
 
 ## App Screenshots
 
+All screenshots below were captured with the app's own snapshot feature.
+Because the app window temporarily disappears during capture, these images were captured by running two app processes side by side.
+
 ### Webcam Recorder
 
 <table>
@@ -29,6 +32,16 @@ It currently includes:
     <td align="center" width="50%">
       <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
       <sub><strong>Webcam Recorder</strong>: Grid overlay option for framing and alignment.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-recording.png"><img src="images/webcam-recorder-recording.png" alt="Webcam Recorder Recording State" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: Recording state with the on-screen recording indicator visible.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-paused.png"><img src="images/webcam-recorder-paused.png" alt="Webcam Recorder Paused State" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: Paused state with the pause badge and resume-ready controls.</sub>
     </td>
     <td></td>
   </tr>

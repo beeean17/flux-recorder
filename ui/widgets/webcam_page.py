@@ -6,8 +6,8 @@ from platform import system
 from time import perf_counter
 
 import numpy as np
-from PyQt6.QtCore import QPoint, QRectF, QSize, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap, QResizeEvent
+from PyQt6.QtCore import QPoint, QPointF, QRectF, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QResizeEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -339,7 +339,7 @@ class WebcamPage(QWidget):
             icon=self._build_pause_icon("#cbd5e1"),
             tooltip=_webcam_text(self._language, "pause_recording"),
         )
-        self._pause_button.clicked.connect(self.pause_recording)
+        self._pause_button.clicked.connect(self._on_pause_button_clicked)
         self._photo_button.clicked.connect(self.capture_photo)
         self._record_button.clicked.connect(self._on_record_button_clicked)
 
@@ -440,10 +440,10 @@ class WebcamPage(QWidget):
         self._begin_recording_countdown()
 
     def toggle_recording(self) -> None:
-        if self._recording_state in (IDLE, PAUSED):
+        if self._recording_state == IDLE:
             self.start_or_resume_recording()
             return
-        if self._recording_state in (STARTING, RECORDING):
+        if self._recording_state in (STARTING, RECORDING, PAUSED):
             self.stop_recording()
 
     def pause_recording(self) -> None:
@@ -499,17 +499,19 @@ class WebcamPage(QWidget):
         is_recording = state == RECORDING
         is_paused = state == PAUSED
 
-        self._pause_button.setEnabled(is_recording)
+        self._pause_button.setEnabled(is_recording or is_paused)
         self._record_button.setEnabled(not is_starting)
         self._recording_badge.setVisible(is_recording or is_paused)
         if is_recording:
             self._recording_badge.setText(_webcam_text(self._language, "rec_short"))
             self._record_button.setText(_webcam_text(self._language, "stop"))
             self._record_button.setStyleSheet(self._capture_button_style("#dc2626", "white", large=True))
+            self._pause_button.setIcon(self._build_pause_icon("#cbd5e1"))
         elif is_paused:
             self._recording_badge.setText(_webcam_text(self._language, "paused"))
-            self._record_button.setText(_webcam_text(self._language, "resume"))
-            self._record_button.setStyleSheet(self._capture_button_style("#2563eb", "white", large=True))
+            self._record_button.setText(_webcam_text(self._language, "stop"))
+            self._record_button.setStyleSheet(self._capture_button_style("#dc2626", "white", large=True))
+            self._pause_button.setIcon(self._build_resume_icon("#cbd5e1"))
         elif is_starting:
             self._record_button.setText(_webcam_text(self._language, "wait"))
             self._record_button.setStyleSheet(self._capture_button_style("#475569", "#e2e8f0", large=True))
@@ -924,6 +926,22 @@ class WebcamPage(QWidget):
         painter.end()
         return QIcon(pixmap)
 
+    def _build_resume_icon(self, color: str) -> QIcon:
+        icon_size = 32
+        device_pixel_ratio = 2.0
+        pixmap = QPixmap(int(icon_size * device_pixel_ratio), int(icon_size * device_pixel_ratio))
+        pixmap.fill(Qt.GlobalColor.transparent)
+        pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(color))
+        triangle = QPolygonF([QPointF(9.0, 5.0), QPointF(9.0, 27.0), QPointF(26.0, 16.0)])
+        painter.drawPolygon(triangle)
+        painter.end()
+        return QIcon(pixmap)
+
     def _badge_style(self, background: str, color: str, bold: bool = False) -> str:
         weight = "700" if bold else "600"
         return (
@@ -953,6 +971,12 @@ class WebcamPage(QWidget):
             "width: 24px;"
             "}"
         )
+
+    def _on_pause_button_clicked(self) -> None:
+        if self._recording_state == RECORDING:
+            self.pause_recording()
+        elif self._recording_state == PAUSED:
+            self.start_or_resume_recording()
 
     def _on_record_button_clicked(self) -> None:
         self.toggle_recording()

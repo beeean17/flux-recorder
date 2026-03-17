@@ -12,7 +12,8 @@ English version: [README.md](README.md)
 
 ## 앱 스크린샷
 
-스크린샷 갤러리:
+아래 스크린샷은 모두 이 앱의 자체 캡처 기능으로 저장한 이미지입니다.
+다만 캡처 순간에는 앱 화면이 잠시 사라지기 때문에, 실제 캡처는 앱을 두 프로세스로 실행한 상태에서 진행했습니다.
 
 ### Webcam Recorder
 
@@ -31,6 +32,16 @@ English version: [README.md](README.md)
     <td align="center" width="50%">
       <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
       <sub><strong>Webcam Recorder</strong>: 구도 확인용 그리드 오버레이.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-recording.png"><img src="images/webcam-recorder-recording.png" alt="Webcam Recorder Recording State" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: 녹화 중 표시와 상태 배지가 보이는 화면.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-paused.png"><img src="images/webcam-recorder-paused.png" alt="Webcam Recorder Paused State" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: 일시정지 상태와 재개 가능한 제어 버튼이 보이는 화면.</sub>
     </td>
     <td></td>
   </tr>
