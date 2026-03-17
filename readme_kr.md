@@ -163,6 +163,19 @@ bash build/build_mac.sh
 - macOS 앱 아이콘은 `assets/app.icns`를 사용합니다.
 - macOS에서 처음 실행할 때 시스템 카메라 권한 요청을 허용해야 합니다.
 
+## 앱 아이콘 다시 만들기
+
+`assets/app.png`를 바꿨다면 아래 명령으로 패키징용 아이콘을 다시 생성할 수 있습니다.
+
+```bash
+python build/generate_icons.py
+```
+
+다음 파일이 다시 생성됩니다.
+
+- `assets/app.ico` Windows 빌드용 아이콘
+- `assets/app.icns` macOS 빌드용 아이콘
+
 ## 핵심 스택
 
 - 데스크톱 UI: `PyQt6`

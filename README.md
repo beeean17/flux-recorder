@@ -163,6 +163,19 @@ Notes:
 - macOS app icon uses `assets/app.icns`.
 - On first macOS launch, allow camera access when the system prompt appears.
 
+## Refresh App Icons
+
+If you update `assets/app.png`, regenerate the packaged app icons with:
+
+```bash
+python build/generate_icons.py
+```
+
+This recreates:
+
+- `assets/app.ico` for Windows builds
+- `assets/app.icns` for macOS builds
+
 ## Core Stack
 
 - `PyQt6` for the desktop UI

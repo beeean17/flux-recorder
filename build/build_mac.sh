@@ -17,6 +17,14 @@ mkdir -p "${PYINSTALLER_CONFIG_DIR}"
 PYINSTALLER_CONFIG_DIR="${PYINSTALLER_CONFIG_DIR}" "${PYTHON_EXE}" -m PyInstaller --noconfirm --clean flux-recorder.spec
 
 APP_PATH="${PROJECT_ROOT}/dist/flux-recorder.app"
+APP_ICON_SOURCE="${PROJECT_ROOT}/assets/app.icns"
+APP_ICON_TARGET="${APP_PATH}/Contents/Resources/icon-windowed.icns"
+
+if [[ -d "${APP_PATH}" ]] && [[ -f "${APP_ICON_SOURCE}" ]]; then
+  cp "${APP_ICON_SOURCE}" "${APP_ICON_TARGET}"
+  touch "${APP_PATH}"
+fi
+
 if [[ -d "${APP_PATH}" ]] && command -v codesign >/dev/null 2>&1; then
   codesign --deep --force --sign - "${APP_PATH}"
 fi
