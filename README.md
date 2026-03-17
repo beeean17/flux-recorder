@@ -12,42 +12,98 @@ It currently includes:
 
 ## App Screenshots
 
-### Dashboard
-![Dashboard English](images/dashboard-en.png)
-English dashboard view showing the main navigation hub for webcam, screen capture, and converter workflows.
+Add captured screenshots to `images/`. The gallery below is already arranged in a two-column layout, and each image has its caption directly underneath it.
 
-![Dashboard Korean](images/dashboard-ko.png)
-Korean dashboard view showing the localized home screen and the same feature entry points.
+Recommended filenames:
 
-### Webcam Recorder
-![Webcam Recorder Default](images/webcam-recorder-default.png)
-Default webcam recorder screen with the live preview and the core capture controls.
+- `images/dashboard-en.png`
+- `images/dashboard-ko.png`
+- `images/webcam-recorder-default.png`
+- `images/webcam-recorder-flash.png`
+- `images/webcam-recorder-grid.png`
+- `images/screen-recorder-overview.png`
+- `images/screen-recorder-fullscreen.png`
+- `images/screen-recorder-window.png`
+- `images/screen-recorder-custom.png`
+- `images/screen-recorder-recording.png`
+- `images/file-converter-video.png`
+- `images/file-converter-image.png`
+- `images/file-converter-crop.png`
 
-![Webcam Recorder Flash Capture](images/webcam-recorder-flash.png)
-Webcam capture example highlighting the still-photo flash effect during snapshot capture.
+Screenshot gallery:
 
-![Webcam Recorder Grid Overlay](images/webcam-recorder-grid.png)
-Webcam preview with the composition grid enabled for framing assistance.
+<p align="center">
+  <a href="images/dashboard-en.png">
+    <img src="images/dashboard-en.png" width="48%" alt="Dashboard English" /><br />
+    <sub><strong>Dashboard</strong>: English home screen with the main recorder entry points.</sub>
+  </a>
+  <a href="images/dashboard-ko.png">
+    <img src="images/dashboard-ko.png" width="48%" alt="Dashboard Korean" /><br />
+    <sub><strong>Dashboard</strong>: Korean home screen showing the localized interface.</sub>
+  </a>
+</p>
 
-### Screen Recorder
-![Screen Recorder Overview](images/screen-recorder-overview.png)
-Screen recorder overview showing the general recording workspace and capture controls.
+<p align="center">
+  <a href="images/webcam-recorder-default.png">
+    <img src="images/webcam-recorder-default.png" width="48%" alt="Webcam Recorder Default" /><br />
+    <sub><strong>Webcam Recorder</strong>: Default webcam preview and recording controls.</sub>
+  </a>
+  <a href="images/webcam-recorder-flash.png">
+    <img src="images/webcam-recorder-flash.png" width="48%" alt="Webcam Recorder Flash Capture" /><br />
+    <sub><strong>Webcam Recorder</strong>: Flash capture workflow for still-image capture.</sub>
+  </a>
+</p>
 
-![Screen Recorder Window](images/screen-recorder-window.png)
-Window capture mode focused on recording a selected application window.
+<p align="center">
+  <a href="images/webcam-recorder-grid.png">
+    <img src="images/webcam-recorder-grid.png" width="48%" alt="Webcam Recorder Grid Overlay" /><br />
+    <sub><strong>Webcam Recorder</strong>: Grid overlay option for framing and alignment.</sub>
+  </a>
+  <a href="images/screen-recorder-overview.png">
+    <img src="images/screen-recorder-overview.png" width="48%" alt="Screen Recorder Overview" /><br />
+    <sub><strong>Screen Recorder</strong>: Overview of the capture setup workspace.</sub>
+  </a>
+</p>
 
-![Screen Recorder Custom Region](images/screen-recorder-custom.png)
-Custom region capture mode with an adjustable recording target area.
+<p align="center">
+  <a href="images/screen-recorder-fullscreen.png">
+    <img src="images/screen-recorder-fullscreen.png" width="48%" alt="Screen Recorder Full Screen" /><br />
+    <sub><strong>Screen Recorder</strong>: Full-screen capture mode setup.</sub>
+  </a>
+  <a href="images/screen-recorder-window.png">
+    <img src="images/screen-recorder-window.png" width="48%" alt="Screen Recorder Window" /><br />
+    <sub><strong>Screen Recorder</strong>: Window capture mode on Windows.</sub>
+  </a>
+</p>
 
-### Converter
-![Video Converter](images/file-converter-video.png)
-Video conversion screen for exporting source videos into supported output formats.
+<p align="center">
+  <a href="images/screen-recorder-custom.png">
+    <img src="images/screen-recorder-custom.png" width="48%" alt="Screen Recorder Custom Region" /><br />
+    <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
+  </a>
+  <a href="images/screen-recorder-recording.png">
+    <img src="images/screen-recorder-recording.png" width="48%" alt="Screen Recorder Recording State" /><br />
+    <sub><strong>Screen Recorder</strong>: Active recording state with the capture controls.</sub>
+  </a>
+</p>
 
-![Image Converter](images/file-converter-image.png)
-Image conversion screen with resize and format options for still images.
+<p align="center">
+  <a href="images/file-converter-video.png">
+    <img src="images/file-converter-video.png" width="48%" alt="Video Converter" /><br />
+    <sub><strong>Converter</strong>: Video format conversion workflow.</sub>
+  </a>
+  <a href="images/file-converter-image.png">
+    <img src="images/file-converter-image.png" width="48%" alt="Image Converter" /><br />
+    <sub><strong>Converter</strong>: Image export, resize, and format conversion workflow.</sub>
+  </a>
+</p>
 
-![Image Crop Dialog](images/file-converter-crop.png)
-Image crop dialog with aspect ratio presets, draggable corner handles, and pixel-based crop sizing.
+<p align="center">
+  <a href="images/file-converter-crop.png">
+    <img src="images/file-converter-crop.png" width="48%" alt="Image Crop Dialog" /><br />
+    <sub><strong>Converter</strong>: Image crop dialog used before export.</sub>
+  </a>
+</p>
 
 ## Demo Videos
 
