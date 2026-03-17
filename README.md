@@ -32,78 +32,75 @@ Recommended filenames:
 
 Screenshot gallery:
 
-<p align="center">
-  <a href="images/dashboard-en.png">
-    <img src="images/dashboard-en.png" width="48%" alt="Dashboard English" /><br />
-    <sub><strong>Dashboard</strong>: English home screen with the main recorder entry points.</sub>
-  </a>
-  <a href="images/dashboard-ko.png">
-    <img src="images/dashboard-ko.png" width="48%" alt="Dashboard Korean" /><br />
-    <sub><strong>Dashboard</strong>: Korean home screen showing the localized interface.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/webcam-recorder-default.png">
-    <img src="images/webcam-recorder-default.png" width="48%" alt="Webcam Recorder Default" /><br />
-    <sub><strong>Webcam Recorder</strong>: Default webcam preview and recording controls.</sub>
-  </a>
-  <a href="images/webcam-recorder-flash.png">
-    <img src="images/webcam-recorder-flash.png" width="48%" alt="Webcam Recorder Flash Capture" /><br />
-    <sub><strong>Webcam Recorder</strong>: Flash capture workflow for still-image capture.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/webcam-recorder-grid.png">
-    <img src="images/webcam-recorder-grid.png" width="48%" alt="Webcam Recorder Grid Overlay" /><br />
-    <sub><strong>Webcam Recorder</strong>: Grid overlay option for framing and alignment.</sub>
-  </a>
-  <a href="images/screen-recorder-overview.png">
-    <img src="images/screen-recorder-overview.png" width="48%" alt="Screen Recorder Overview" /><br />
-    <sub><strong>Screen Recorder</strong>: Overview of the capture setup workspace.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/screen-recorder-fullscreen.png">
-    <img src="images/screen-recorder-fullscreen.png" width="48%" alt="Screen Recorder Full Screen" /><br />
-    <sub><strong>Screen Recorder</strong>: Full-screen capture mode setup.</sub>
-  </a>
-  <a href="images/screen-recorder-window.png">
-    <img src="images/screen-recorder-window.png" width="48%" alt="Screen Recorder Window" /><br />
-    <sub><strong>Screen Recorder</strong>: Window capture mode on Windows.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/screen-recorder-custom.png">
-    <img src="images/screen-recorder-custom.png" width="48%" alt="Screen Recorder Custom Region" /><br />
-    <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
-  </a>
-  <a href="images/screen-recorder-recording.png">
-    <img src="images/screen-recorder-recording.png" width="48%" alt="Screen Recorder Recording State" /><br />
-    <sub><strong>Screen Recorder</strong>: Active recording state with the capture controls.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/file-converter-video.png">
-    <img src="images/file-converter-video.png" width="48%" alt="Video Converter" /><br />
-    <sub><strong>Converter</strong>: Video format conversion workflow.</sub>
-  </a>
-  <a href="images/file-converter-image.png">
-    <img src="images/file-converter-image.png" width="48%" alt="Image Converter" /><br />
-    <sub><strong>Converter</strong>: Image export, resize, and format conversion workflow.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/file-converter-crop.png">
-    <img src="images/file-converter-crop.png" width="48%" alt="Image Crop Dialog" /><br />
-    <sub><strong>Converter</strong>: Image crop dialog used before export.</sub>
-  </a>
-</p>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/dashboard-en.png"><img src="images/dashboard-en.png" alt="Dashboard English" width="100%"></a><br>
+      <sub><strong>Dashboard</strong>: English home screen with the main recorder entry points.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/dashboard-ko.png"><img src="images/dashboard-ko.png" alt="Dashboard Korean" width="100%"></a><br>
+      <sub><strong>Dashboard</strong>: Korean home screen showing the localized interface.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-default.png"><img src="images/webcam-recorder-default.png" alt="Webcam Recorder Default" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: Default webcam preview and recording controls.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-flash.png"><img src="images/webcam-recorder-flash.png" alt="Webcam Recorder Flash Capture" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: Flash capture workflow for still-image capture.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: Grid overlay option for framing and alignment.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-overview.png"><img src="images/screen-recorder-overview.png" alt="Screen Recorder Overview" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Overview of the capture setup workspace.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Full-screen capture mode setup.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Window capture mode on Windows.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Custom region selection workflow.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Active recording state with the capture controls.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/file-converter-video.png"><img src="images/file-converter-video.png" alt="Video Converter" width="100%"></a><br>
+      <sub><strong>Converter</strong>: Video format conversion workflow.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/file-converter-image.png"><img src="images/file-converter-image.png" alt="Image Converter" width="100%"></a><br>
+      <sub><strong>Converter</strong>: Image export, resize, and format conversion workflow.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/file-converter-crop.png"><img src="images/file-converter-crop.png" alt="Image Crop Dialog" width="100%"></a><br>
+      <sub><strong>Converter</strong>: Image crop dialog used before export.</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
 
 ## Demo Videos
 

@@ -32,78 +32,75 @@ English version: [README.md](README.md)
 
 스크린샷 갤러리:
 
-<p align="center">
-  <a href="images/dashboard-en.png">
-    <img src="images/dashboard-en.png" width="48%" alt="Dashboard English" /><br />
-    <sub><strong>Dashboard</strong>: 메인 기능 진입점이 보이는 영어 홈 화면.</sub>
-  </a>
-  <a href="images/dashboard-ko.png">
-    <img src="images/dashboard-ko.png" width="48%" alt="Dashboard Korean" /><br />
-    <sub><strong>Dashboard</strong>: 한글로 현지화된 홈 화면.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/webcam-recorder-default.png">
-    <img src="images/webcam-recorder-default.png" width="48%" alt="Webcam Recorder Default" /><br />
-    <sub><strong>Webcam Recorder</strong>: 기본 웹캠 미리보기와 녹화 제어 화면.</sub>
-  </a>
-  <a href="images/webcam-recorder-flash.png">
-    <img src="images/webcam-recorder-flash.png" width="48%" alt="Webcam Recorder Flash Capture" /><br />
-    <sub><strong>Webcam Recorder</strong>: 플래시 캡처 흐름이 보이는 화면.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/webcam-recorder-grid.png">
-    <img src="images/webcam-recorder-grid.png" width="48%" alt="Webcam Recorder Grid Overlay" /><br />
-    <sub><strong>Webcam Recorder</strong>: 구도 확인용 그리드 오버레이.</sub>
-  </a>
-  <a href="images/screen-recorder-overview.png">
-    <img src="images/screen-recorder-overview.png" width="48%" alt="Screen Recorder Overview" /><br />
-    <sub><strong>Screen Recorder</strong>: 화면 캡처 설정 작업 공간 개요.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/screen-recorder-fullscreen.png">
-    <img src="images/screen-recorder-fullscreen.png" width="48%" alt="Screen Recorder Full Screen" /><br />
-    <sub><strong>Screen Recorder</strong>: 전체 화면 캡처 모드 설정 화면.</sub>
-  </a>
-  <a href="images/screen-recorder-window.png">
-    <img src="images/screen-recorder-window.png" width="48%" alt="Screen Recorder Window" /><br />
-    <sub><strong>Screen Recorder</strong>: Windows 환경의 창 캡처 모드.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/screen-recorder-custom.png">
-    <img src="images/screen-recorder-custom.png" width="48%" alt="Screen Recorder Custom Region" /><br />
-    <sub><strong>Screen Recorder</strong>: 사용자 지정 영역 선택 흐름.</sub>
-  </a>
-  <a href="images/screen-recorder-recording.png">
-    <img src="images/screen-recorder-recording.png" width="48%" alt="Screen Recorder Recording State" /><br />
-    <sub><strong>Screen Recorder</strong>: 실제 녹화 진행 상태 화면.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/file-converter-video.png">
-    <img src="images/file-converter-video.png" width="48%" alt="Video Converter" /><br />
-    <sub><strong>Converter</strong>: 비디오 형식 변환 작업 화면.</sub>
-  </a>
-  <a href="images/file-converter-image.png">
-    <img src="images/file-converter-image.png" width="48%" alt="Image Converter" /><br />
-    <sub><strong>Converter</strong>: 이미지 리사이즈 및 형식 변환 화면.</sub>
-  </a>
-</p>
-
-<p align="center">
-  <a href="images/file-converter-crop.png">
-    <img src="images/file-converter-crop.png" width="48%" alt="Image Crop Dialog" /><br />
-    <sub><strong>Converter</strong>: 이미지 내보내기 전 crop 대화상자.</sub>
-  </a>
-</p>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/dashboard-en.png"><img src="images/dashboard-en.png" alt="Dashboard English" width="100%"></a><br>
+      <sub><strong>Dashboard</strong>: 메인 기능 진입점이 보이는 영어 홈 화면.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/dashboard-ko.png"><img src="images/dashboard-ko.png" alt="Dashboard Korean" width="100%"></a><br>
+      <sub><strong>Dashboard</strong>: 한글로 현지화된 홈 화면.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-default.png"><img src="images/webcam-recorder-default.png" alt="Webcam Recorder Default" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: 기본 웹캠 미리보기와 녹화 제어 화면.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-flash.png"><img src="images/webcam-recorder-flash.png" alt="Webcam Recorder Flash Capture" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: 플래시 캡처 흐름이 보이는 화면.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/webcam-recorder-grid.png"><img src="images/webcam-recorder-grid.png" alt="Webcam Recorder Grid Overlay" width="100%"></a><br>
+      <sub><strong>Webcam Recorder</strong>: 구도 확인용 그리드 오버레이.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-overview.png"><img src="images/screen-recorder-overview.png" alt="Screen Recorder Overview" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: 화면 캡처 설정 작업 공간 개요.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-fullscreen.png"><img src="images/screen-recorder-fullscreen.png" alt="Screen Recorder Full Screen" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: 전체 화면 캡처 모드 설정 화면.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-window.png"><img src="images/screen-recorder-window.png" alt="Screen Recorder Window" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: Windows 환경의 창 캡처 모드.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-custom.png"><img src="images/screen-recorder-custom.png" alt="Screen Recorder Custom Region" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: 사용자 지정 영역 선택 흐름.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/screen-recorder-recording.png"><img src="images/screen-recorder-recording.png" alt="Screen Recorder Recording State" width="100%"></a><br>
+      <sub><strong>Screen Recorder</strong>: 실제 녹화 진행 상태 화면.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/file-converter-video.png"><img src="images/file-converter-video.png" alt="Video Converter" width="100%"></a><br>
+      <sub><strong>Converter</strong>: 비디오 형식 변환 작업 화면.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="images/file-converter-image.png"><img src="images/file-converter-image.png" alt="Image Converter" width="100%"></a><br>
+      <sub><strong>Converter</strong>: 이미지 리사이즈 및 형식 변환 화면.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="images/file-converter-crop.png"><img src="images/file-converter-crop.png" alt="Image Crop Dialog" width="100%"></a><br>
+      <sub><strong>Converter</strong>: 이미지 내보내기 전 crop 대화상자.</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
 
 ## 데모 영상
 
