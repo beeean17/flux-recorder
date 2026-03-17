@@ -83,6 +83,24 @@ WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
         "camera_label": "Camera {index}",
         "stop_before_switch": "Stop recording before switching cameras.",
         "failed_read_frame": "Failed to read a frame from the camera.",
+        "camera_permission_denied": (
+            "Camera access is blocked by Windows. "
+            "Go to Settings \u2192 Privacy & Security \u2192 Camera "
+            "and enable camera access for desktop apps."
+        ),
+        "camera_os_device_missing": (
+            "Windows is not exposing any camera device to desktop apps. "
+            "Check Device Manager, camera privacy settings, another app using the webcam, "
+            "or camera passthrough in Remote Desktop / VM."
+        ),
+        "camera_opencv_backend_issue": (
+            "Windows can see camera devices, but this OpenCV build cannot open them. "
+            "OpenCV camera backends in this build: {backends}."
+        ),
+        "opencv_headless_conflict": (
+            "Camera unavailable: opencv-python-headless is installed and conflicts with opencv-python. "
+            "Run: pip uninstall opencv-python-headless -y && pip install --upgrade opencv-python"
+        ),
         "language_button": "한국어",
     },
     "ko": {
@@ -134,6 +152,15 @@ WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
         "camera_label": "카메라 {index}",
         "stop_before_switch": "카메라를 바꾸기 전에 현재 녹화를 종료하세요.",
         "failed_read_frame": "카메라에서 프레임을 읽지 못했습니다.",
+        "camera_permission_denied": (
+            "Windows에서 카메라 접근이 차단되어 있습니다. "
+            "설정 \u2192 개인 정보 및 보안 \u2192 카메라로 이동하여 "
+            "데스크톱 앱의 카메라 접근을 허용해 주세요."
+        ),
+        "opencv_headless_conflict": (
+            "카메라 사용 불가: opencv-python-headless가 설치되어 opencv-python과 충돌합니다. "
+            "다음 명령어를 실행하세요: pip uninstall opencv-python-headless -y && pip install --upgrade opencv-python"
+        ),
         "language_button": "English",
     },
 }
@@ -141,7 +168,10 @@ WEBCAM_TRANSLATIONS: dict[str, dict[str, str]] = {
 
 def _webcam_text(language: str, key: str, **kwargs) -> str:
     normalized = language if language in WEBCAM_TRANSLATIONS else "en"
-    template = WEBCAM_TRANSLATIONS[normalized][key]
+    if key in WEBCAM_TRANSLATIONS[normalized]:
+        template = WEBCAM_TRANSLATIONS[normalized][key]
+    else:
+        template = WEBCAM_TRANSLATIONS["en"][key]
     return template.format(**kwargs)
 
 
@@ -377,12 +407,24 @@ class WebcamPage(QWidget):
             self._preview_timer = QTimer(self)
             self._preview_timer.timeout.connect(self._poll_frame)
 
+        if self._is_opencv_headless_conflict():
+            message = _webcam_text(self._language, "opencv_headless_conflict")
+            self._camera_view.setText(message)
+            self.set_status(message)
+            return
+
+        if self._is_windows_camera_permission_denied():
+            message = _webcam_text(self._language, "camera_permission_denied")
+            self._camera_view.setText(message)
+            self.set_status(message)
+            return
+
         self._available_camera_indices = self._discover_camera_devices()
         self._sync_video_device_combo()
 
         if not self._available_camera_indices:
             self._release_camera()
-            message = _webcam_text(self._language, "no_camera_devices")
+            message = self._camera_unavailable_message()
             self._camera_view.setText(message)
             self.set_status(message)
             return
@@ -1095,6 +1137,108 @@ class WebcamPage(QWidget):
         frame_rgb = self._cv2.cvtColor(frame_bgr, self._cv2.COLOR_BGR2RGB)
         self.update_frame(frame_rgb)
 
+    @staticmethod
+    def _is_opencv_headless_conflict() -> bool:
+        try:
+            import importlib.metadata
+
+            installed = {dist.metadata["Name"].lower() for dist in importlib.metadata.distributions()}
+            return "opencv-python" in installed and "opencv-python-headless" in installed
+        except Exception:
+            return False
+
+    @staticmethod
+    def _is_windows_camera_permission_denied() -> bool:
+        if system() != "Windows":
+            return False
+        try:
+            import winreg
+
+            consent_keys = [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam",
+            ]
+            roots = [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]
+            for root in roots:
+                for key_path in consent_keys:
+                    try:
+                        with winreg.OpenKey(root, key_path) as key:
+                            value, _ = winreg.QueryValueEx(key, "Value")
+                            if value == "Deny":
+                                return True
+                    except OSError:
+                        continue
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def _windows_qt_camera_count() -> int | None:
+        if system() != "Windows":
+            return None
+
+        try:
+            from PyQt6.QtMultimedia import QMediaDevices
+        except Exception:
+            return None
+
+        try:
+            return len(QMediaDevices.videoInputs())
+        except Exception:
+            return None
+
+    def _opencv_backend_available(self, backend: int | None) -> bool:
+        if self._cv2 is None or backend is None:
+            return True
+
+        registry = getattr(self._cv2, "videoio_registry", None)
+        if registry is None:
+            return True
+
+        try:
+            if hasattr(registry, "isBackendBuiltIn"):
+                return bool(registry.isBackendBuiltIn(backend))
+            if hasattr(registry, "hasBackend"):
+                return bool(registry.hasBackend(backend))
+        except Exception:
+            return True
+        return True
+
+    def _windows_opencv_backend_summary(self) -> str:
+        if self._cv2 is None:
+            return "unknown"
+
+        backend_names: list[str] = []
+        for attribute_name, label in (("CAP_MSMF", "MSMF"), ("CAP_DSHOW", "DSHOW")):
+            backend = getattr(self._cv2, attribute_name, None)
+            if backend is None:
+                continue
+            if self._opencv_backend_available(backend):
+                backend_names.append(label)
+
+        if not backend_names:
+            return "none"
+        return ", ".join(backend_names)
+
+    def _camera_unavailable_message(self) -> str:
+        if self._is_opencv_headless_conflict():
+            return _webcam_text(self._language, "opencv_headless_conflict")
+
+        if system() != "Windows":
+            return _webcam_text(self._language, "no_camera_devices")
+
+        qt_camera_count = self._windows_qt_camera_count()
+        if qt_camera_count == 0:
+            return _webcam_text(self._language, "camera_os_device_missing")
+
+        if qt_camera_count is not None and qt_camera_count > 0:
+            return _webcam_text(
+                self._language,
+                "camera_opencv_backend_issue",
+                backends=self._windows_opencv_backend_summary(),
+            )
+
+        return _webcam_text(self._language, "no_camera_devices")
+
     def _discover_camera_devices(self) -> list[int]:
         if self._cv2 is None:
             return []
@@ -1150,15 +1294,18 @@ class WebcamPage(QWidget):
         platform_name = system()
         candidates: list[int | None] = []
         if platform_name == "Darwin":
-            candidates.extend([getattr(self._cv2, "CAP_AVFOUNDATION", None), None])
+            avfoundation = getattr(self._cv2, "CAP_AVFOUNDATION", None)
+            if self._opencv_backend_available(avfoundation):
+                candidates.append(avfoundation)
+            candidates.append(None)
         if platform_name == "Windows":
-            candidates.extend(
-                [
-                    getattr(self._cv2, "CAP_MSMF", None),
-                    getattr(self._cv2, "CAP_DSHOW", None),
-                    None,
-                ]
-            )
+            msmf = getattr(self._cv2, "CAP_MSMF", None)
+            dshow = getattr(self._cv2, "CAP_DSHOW", None)
+            if self._opencv_backend_available(msmf):
+                candidates.append(msmf)
+            if self._opencv_backend_available(dshow):
+                candidates.append(dshow)
+            candidates.append(None)
         if not candidates:
             candidates.append(None)
 

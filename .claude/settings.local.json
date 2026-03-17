@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "Bash(pip show:*)",
+      "Bash(python -c \"import cv2; print\\(cv2.__file__\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \":*)"
+    ]
+  }
+}
