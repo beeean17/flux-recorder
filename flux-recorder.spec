@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 
-project_root = Path(SPECPATH).resolve().parent
+# PyInstaller exposes SPECPATH as the directory containing this spec file.
+project_root = Path(SPECPATH).resolve()
 assets_dir = project_root / "assets"
 
 datas = []
@@ -51,10 +52,8 @@ if sys.platform == "win32":
     exe = EXE(
         pyz,
         a.scripts,
-        a.binaries,
-        a.datas,
         [],
-        exclude_binaries=False,
+        exclude_binaries=True,
         name="flux-recorder",
         debug=False,
         bootloader_ignore_signals=False,
@@ -67,6 +66,15 @@ if sys.platform == "win32":
         codesign_identity=None,
         entitlements_file=None,
         icon=exe_icon,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name="flux-recorder",
     )
 elif sys.platform == "darwin":
     exe = EXE(

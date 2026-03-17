@@ -14,6 +14,7 @@ dist/
 build/*
 !build/build_windows.bat
 !build/build_mac.sh
+!build/generate_icons.py
 *.pkg
 *.pyz
 *.egg-info/

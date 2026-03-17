@@ -4,11 +4,36 @@ Desktop media toolkit built with `PyQt6` and `OpenCV`.
 
 Korean version: [리드미.한국어](readme_kr.md)
 
-It currently includes:
-- Webcam recording
-- Screen recording
-- Image and video conversion
-- Image crop, resize, and format export controls in the converter
+It currently includes three main workflows:
+- Webcam recorder
+  - Scan available camera devices and switch between detected webcams
+  - Show a live preview with capture-status badges
+  - Save still photos as `PNG`
+  - Record webcam clips as `MP4`
+  - Start recording with a 3-second countdown
+  - Pause, resume, and stop recordings
+  - Toggle flash and grid overlays
+  - Choose a save folder
+- Screen recorder
+  - Capture the full desktop, a selected window, or a custom drag-selected region
+  - Hide the main app window before capture starts
+  - Record screen clips and save snapshots
+  - Use frame-rate presets and save-path controls
+  - Restore the screen-capture defaults from the UI
+  - Use a Windows window picker for window capture
+  - Use a custom-area selector for region capture
+  - Control recording from a floating mini controller while the main window is hidden
+  - Show system-audio and external-mic toggles in the UI
+  - Current limitation: the OpenCV recording path does not save audio yet
+- File converter
+  - Convert videos to `MP4` or `AVI`
+  - Show conversion progress while processing
+  - Convert images to `PNG`, `JPG`, `BMP`, or `ICO`
+  - Choose an output folder
+  - Keep the original image size or enter a custom width and height
+  - Open a dedicated crop dialog before export
+  - Create, move, and resize the crop box
+  - Use crop aspect-ratio presets such as `Free`, `1:1`, `4:5`, `16:9`, `5:4`, and `9:16`
 
 ## App Screenshots
 
@@ -141,7 +166,7 @@ Windows:
 build\build_windows.bat
 ```
 
-Produces a single-file build at `dist/flux-recorder.exe`.
+Produces a portable Windows folder at `dist/flux-recorder/` and a ZIP archive at `dist/flux-recorder-windows.zip`.
 
 macOS:
 
@@ -155,12 +180,13 @@ Notes:
 
 - The project uses `flux-recorder.spec` for packaging.
 - `assets/` is bundled automatically.
-- Windows uses a `onefile` PyInstaller build.
+- Windows uses an `onedir` PyInstaller build and packages it as a ZIP release.
 - macOS uses an app bundle so camera permissions can be declared through `Info.plist`.
 - The macOS build includes `NSCameraUsageDescription` and `NSMicrophoneUsageDescription`.
 - The macOS build script applies ad-hoc signing with `codesign --deep --force --sign -`.
 - Windows app icon uses `assets/app.ico`.
 - macOS app icon uses `assets/app.icns`.
+- Frozen Windows builds save settings in `%APPDATA%\flux-recorder\settings.json`.
 - On first macOS launch, allow camera access when the system prompt appears.
 
 ## Refresh App Icons

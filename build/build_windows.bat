@@ -25,4 +25,11 @@ if errorlevel 1 (
   popd
   exit /b %errorlevel%
 )
+if exist "%PROJECT_ROOT%\dist\flux-recorder" (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Start-Sleep -Seconds 2; if (Test-Path '%PROJECT_ROOT%\dist\flux-recorder-windows.zip') { Remove-Item '%PROJECT_ROOT%\dist\flux-recorder-windows.zip' -Force }; Compress-Archive -Path '%PROJECT_ROOT%\dist\flux-recorder' -DestinationPath '%PROJECT_ROOT%\dist\flux-recorder-windows.zip' -Force"
+  if errorlevel 1 (
+    popd
+    exit /b %errorlevel%
+  )
+)
 popd

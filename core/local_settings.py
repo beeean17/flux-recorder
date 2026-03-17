@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,10 +19,15 @@ class AppSettings:
 
 
 def load_app_settings() -> AppSettings:
-    settings_path = _settings_path()
-    try:
-        payload = json.loads(settings_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    payload: dict[str, object] | None = None
+    for settings_path in _candidate_settings_paths():
+        try:
+            payload = json.loads(settings_path.read_text(encoding="utf-8"))
+            break
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            continue
+
+    if payload is None:
         return AppSettings()
 
     return AppSettings(
@@ -53,8 +60,40 @@ def save_app_settings(settings: AppSettings) -> None:
 
 
 def _settings_path() -> Path:
-    project_root = Path(__file__).resolve().parents[1]
-    return project_root / ".flux-recorder" / "settings.json"
+    return _candidate_settings_paths()[0]
+
+
+def _candidate_settings_paths() -> tuple[Path, ...]:
+    primary_path = _settings_root() / "settings.json"
+    legacy_path = _legacy_settings_path()
+    if legacy_path is not None and legacy_path != primary_path:
+        return (primary_path, legacy_path)
+    return (primary_path,)
+
+
+def _settings_root() -> Path:
+    if not getattr(sys, "frozen", False):
+        return Path(__file__).resolve().parents[1] / ".flux-recorder"
+
+    if sys.platform == "win32":
+        appdata_root = os.environ.get("APPDATA")
+        if appdata_root:
+            return Path(appdata_root).expanduser() / "flux-recorder"
+        return Path.home() / "AppData" / "Roaming" / "flux-recorder"
+
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "flux-recorder"
+
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    if config_home:
+        return Path(config_home).expanduser() / "flux-recorder"
+    return Path.home() / ".config" / "flux-recorder"
+
+
+def _legacy_settings_path() -> Path | None:
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        return Path(sys.executable).resolve().parent / ".flux-recorder" / "settings.json"
+    return None
 
 
 def _normalize_language(value: object) -> str:

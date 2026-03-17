@@ -4,11 +4,36 @@
 
 English version: [README.md](README.md)
 
-현재 포함된 기능:
-- 웹캠 녹화
-- 화면 녹화
-- 이미지 및 비디오 변환
-- 이미지 crop, 리사이즈, 형식 변환 제어
+현재는 크게 세 가지 워크플로우를 포함합니다:
+- 웹캠 레코더
+  - 사용 가능한 카메라 장치를 스캔하고 감지된 웹캠 사이를 전환
+  - 라이브 미리보기와 캡처 상태 배지 표시
+  - `PNG` 사진 저장
+  - `MP4` 웹캠 녹화
+  - 3초 카운트다운 후 녹화 시작
+  - 녹화 일시정지, 재개, 정지 제어
+  - 플래시와 그리드 오버레이 토글
+  - 저장 폴더 선택
+- 화면 레코더
+  - 전체 데스크톱, 특정 창, 또는 드래그로 지정한 사용자 영역 캡처
+  - 캡처 시작 전에 메인 앱 창 숨김
+  - 화면 녹화와 스냅샷 저장
+  - 프레임 속도 프리셋과 저장 경로 제어
+  - UI에서 기본값 복원 지원
+  - Windows 창 선택기를 통한 창 캡처 대상 선택
+  - 사용자 영역 선택기를 통한 드래그 캡처
+  - 메인 창이 숨겨진 동안 플로팅 미니 컨트롤러로 녹화 제어
+  - 시스템 오디오와 외부 마이크 토글 UI 제공
+  - 현재 제한 사항: OpenCV 녹화 경로에서는 오디오가 실제로 저장되지 않음
+- 파일 컨버터
+  - 비디오를 `MP4` 또는 `AVI`로 변환
+  - 변환 진행률 표시
+  - 이미지를 `PNG`, `JPG`, `BMP`, `ICO`로 변환
+  - 출력 폴더 선택
+  - 원본 크기 유지 또는 사용자 지정 가로, 세로 크기 입력
+  - 내보내기 전에 전용 crop 대화상자 열기
+  - crop 영역 생성, 이동, 모서리 리사이즈
+  - `Free`, `1:1`, `4:5`, `16:9`, `5:4`, `9:16` 비율 프리셋 지원
 
 ## 앱 스크린샷
 
@@ -141,7 +166,7 @@ Windows:
 build\build_windows.bat
 ```
 
-단일 실행 파일 `dist/flux-recorder.exe`가 생성됩니다.
+Windows용 폴더 빌드 `dist/flux-recorder/`와 ZIP 아카이브 `dist/flux-recorder-windows.zip`가 생성됩니다.
 
 macOS:
 
@@ -155,12 +180,13 @@ bash build/build_mac.sh
 
 - 패키징에는 `flux-recorder.spec`를 사용합니다.
 - `assets/` 폴더는 자동으로 번들됩니다.
-- Windows는 `onefile` PyInstaller 빌드를 사용합니다.
+- Windows는 `onedir` PyInstaller 빌드를 사용하고 ZIP 릴리스로 배포합니다.
 - macOS는 카메라 권한 설명을 `Info.plist`에 넣을 수 있도록 앱 번들 방식으로 빌드합니다.
 - macOS 빌드에는 `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`가 포함됩니다.
 - macOS 빌드 스크립트는 `codesign --deep --force --sign -`로 ad-hoc 서명을 적용합니다.
 - Windows 앱 아이콘은 `assets/app.ico`를 사용합니다.
 - macOS 앱 아이콘은 `assets/app.icns`를 사용합니다.
+- 패키징된 Windows 앱은 `%APPDATA%\flux-recorder\settings.json`에 설정을 저장합니다.
 - macOS에서 처음 실행할 때 시스템 카메라 권한 요청을 허용해야 합니다.
 
 ## 앱 아이콘 다시 만들기
